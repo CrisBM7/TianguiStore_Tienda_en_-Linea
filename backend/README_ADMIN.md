@@ -5,8 +5,6 @@ Este documento contiene las instrucciones administrativas para instalar, configu
 
 ---
 
-Esto es un prueba
-
 ## 📦 Contenido del Paquete
 
 - `full_inicializacion_tienda_db_super_extendida.sql`: Script SQL que crea la base de datos, estructura completa y datos de inicio.
