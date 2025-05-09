@@ -81,6 +81,7 @@ exports.agregarProducto = async (req, res) => {
 // 🖼️ POST /productos/archivos → Crear producto con archivos
 // ─────────────────────────────────────────────
 exports.agregarProductoConArchivos = async (req, res) => {
+  console.log("agregarProductoConArchivos")
   const datos = req.body;
   const requeridos = ["nombre", "precio", "categoria_id", "tipo_pago"];
 

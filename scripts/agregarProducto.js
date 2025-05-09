@@ -11,8 +11,8 @@
 
 document.addEventListener("DOMContentLoaded", () => {
   // Cargar categorías, marcas y configurar vistas previas de imágenes y modelos 3D
-  //cargarCategorias();
-  //cargarMarcas();
+  cargarCategorias();
+  cargarMarcas();
   configurarVistaPreviaImagenes();
   configurarVistaPreviaModelo3D();
 
@@ -50,13 +50,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Enviar los datos al servidor
     try {
-      console.log("Agregar producto")
-      console.log(formData)
       const res = await fetch("/productos", {
         method: "POST",
         body: formData,
       });
-      console.log(res);
 
       const data = await res.json();
 

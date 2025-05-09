@@ -100,7 +100,7 @@ if (!IS_DEV) {
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,  // 15 minutos
-    max: 100,  // Limitar a 100 peticiones por ventana
+    max: 100000000000000,  // Limitar a 100 peticiones por ventana
     message: `⚡ Demasiadas solicitudes. Intente más tarde.`
   })
 );

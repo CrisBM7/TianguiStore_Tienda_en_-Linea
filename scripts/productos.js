@@ -26,8 +26,6 @@ document.addEventListener("DOMContentLoaded", async () => {
  * Esta función obtiene los productos desde el backend y los agrega a la interfaz en forma de tarjetas.
  */
 async function cargarProductos() {
-    
-      console.log("cargarProductos")
     const contenedor = document.getElementById("productos-container");
     if (!contenedor) return;
 
