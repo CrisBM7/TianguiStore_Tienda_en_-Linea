@@ -27,7 +27,7 @@ router.get(
 );
 
 // 📦 Obtener solo los pedidos del usuario autenticado (cliente)
-router.get(
+router.post(
   "/mis",
  //verificarAutenticacion,
   obtenerMisPedidos

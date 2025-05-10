@@ -29,8 +29,8 @@ async function obtenerMisPedidos(usuario_id) {
            e.estado_nombre
     FROM pedidos p
     JOIN estados_pedido e ON p.estado_id = e.estado_id
-    WHERE p.usuario_id = ? AND p.borrado_logico = 0
-    ORDER BY p.fecha_pedido DESC
+    WHERE p.cliente_id = ?
+    ORDER BY p.fecha_pedido DESC LIMIT 0, 25
   `, [usuario_id]);
   return rows;
 }

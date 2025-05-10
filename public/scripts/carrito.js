@@ -175,6 +175,7 @@ function crearContenedorToasts() {
 
 // 🚀 Validación y envío del pedido (modo autenticado)
 async function realizarPedidoDesdeLocalStorage() {
+  console.log("entro a realizarPedidoDesdeLocalStorage");
   const carrito = JSON.parse(localStorage.getItem("carrito")) || [];
   const errores = [];
 
@@ -208,6 +209,17 @@ async function realizarPedidoDesdeLocalStorage() {
     }))
   };
 
+  const pedidoCarrito = {
+    usuario : {
+     usuario_id : "1"
+    },
+    total : "545",
+    metodo_pago : "tarjeta",
+    cupon : "",
+    direccion_envio : "Calle locochona",
+    notas : "lol"
+  }
+
   try {
     const res = await fetch(`${BASE_URL}/pedidos`, {
       method: "POST",
@@ -215,10 +227,11 @@ async function realizarPedidoDesdeLocalStorage() {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${token}`
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(pedidoCarrito)
     });
 
     const data = await res.json();
+    
 
     if (res.ok) {
       localStorage.removeItem("carrito"); // Vaciar carrito tras el pedido

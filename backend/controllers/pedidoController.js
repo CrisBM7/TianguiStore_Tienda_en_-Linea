@@ -34,11 +34,16 @@ exports.obtenerPedidos = async (req, res) => {
  * Obtener pedidos del usuario autenticado.
  */
 exports.obtenerMisPedidos = async (req, res) => {
-  const usuario = req.usuario;
+  console.log("Entro a la funcion obtener Pedidos");
+  const usuario = JSON.parse(req.body.usuario);
+  console.log("Este es el objeto usuario: ", usuario);
+  console.log("usuario id " + usuario.usuario_id);
+
   if (!usuario) return res.status(403).json({ mensaje: "No autenticado" });
 
   try {
     const pedidos = await pedidoModel.obtenerMisPedidos(usuario.usuario_id);
+    console.log("Estos son los pedidos: " + pedidos);
     res.status(200).json(pedidos);
   } catch (err) {
     console.error("❌ Error al obtener pedidos del cliente:", err);

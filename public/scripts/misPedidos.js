@@ -24,11 +24,23 @@ document.addEventListener("DOMContentLoaded", () => {
  * Esta función obtiene los pedidos del usuario y los muestra en una tabla.
  */
 async function cargarPedidosUsuario() {
+    console.log("localStorage : ")
+    console.log(localStorage.getItem("token"));
+    console.log(localStorage.getItem("usuario"));
+    let usuario =  localStorage.getItem("usuario");
     const tabla = document.getElementById("tabla-pedidos");
     if (!tabla) return;
 
     try {
-        const response = await fetch("/pedidos/mis", { credentials: "include" });
+        //const resp = await fetch("/pedidos/mis", { credentials: "include" });
+        const response = await fetch("/pedidos/mis", {
+          method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ usuario }) // 👈 Lo envías dentro del body
+            });
+
         if (!response.ok) throw new Error("No se pudieron obtener los pedidos.");
         
         const pedidos = await response.json();
