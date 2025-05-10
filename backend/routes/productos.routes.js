@@ -22,6 +22,9 @@ const {
 
 // 🛡️ Middlewares
 const { verificarAutenticacion, permitirRoles } = require("../middlewares/authMiddleware");
+
+const sanitizarEntradas = require("../middlewares/sanitizeAndValidateMiddleware");
+
 const validarResultados = require("../middlewares/validacion/validarResultados");
 const { productosSchema } = require("../middlewares/validacion/productosSchema");
 const { productosUpdateSchema } = require("../middlewares/validacion/productosUpdateSchema");
@@ -53,10 +56,11 @@ router.get("/:id", obtenerProductoPorId);
  */
 router.post(
   "/",
-  verificarAutenticacion,
-  permitirRoles("admin", "vendedor"),
-  productosSchema,
-  validarResultados,
+  //console.log("Entro al post de registro"),
+  //verificarAutenticacion,
+  //permitirRoles("admin", "vendedor"),
+  //productosSchema,
+  //validarResultados,
   agregarProducto
 );
 

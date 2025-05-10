@@ -51,8 +51,11 @@ exports.obtenerMisPedidos = async (req, res) => {
  * Crear pedido desde formulario manual (con parámetros individuales).
  */
 exports.crearPedido = async (req, res) => {
-  const usuario = req.usuario;
-  if (!usuario) return res.status(403).json({ mensaje: "No autenticado" });
+  console.log("Entro a crear el pedido");
+  console.log(req.body);
+  const usuario = req.body.usuario;
+  //if (!usuario) return res.status(403).json({ mensaje: "No autenticado" });
+
 
   const { total, metodo_pago, cupon, direccion_envio, notas } = req.body;
   if (!total || !metodo_pago || !direccion_envio) {
@@ -82,7 +85,7 @@ exports.crearPedido = async (req, res) => {
  */
 exports.crearPedidoDesdeCarrito = async (req, res) => {
   const usuario = req.usuario;
-  if (!usuario) return res.status(403).json({ mensaje: "No autenticado" });
+  //if (!usuario) return res.status(403).json({ mensaje: "No autenticado" });
 
   try {
     const totalCarrito = await pedidoModel.calcularTotalCarrito(usuario.usuario_id);

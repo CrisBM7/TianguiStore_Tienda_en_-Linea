@@ -19,7 +19,13 @@ const JWT_SECRET = process.env.JWT_SECRET || "clave_predeterminada";
  * - Inserta el payload JWT en req.usuario
  */
 function verificarAutenticacion(req, res, next) {
+
+  
   const authHeader = req.headers.authorization;
+
+  console.log('verificarAutenticacion');
+  
+  console.log(authHeader);
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({
@@ -52,6 +58,7 @@ function verificarAutenticacion(req, res, next) {
  * @param {string} accion - Ej. "crear", "leer", "actualizar", "eliminar"
  */
 function verificarPermiso(recurso, accion) {
+  console.log("verificarPermiso");
   return (req, res, next) => {
     const permisos = req.usuario?.permisos || {};
 

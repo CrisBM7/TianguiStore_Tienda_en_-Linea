@@ -56,16 +56,21 @@ exports.obtenerProductoPorId = async (req, res) => {
 // ➕ POST /productos → Crear producto (JSON plano)
 // ─────────────────────────────────────────────
 exports.agregarProducto = async (req, res) => {
+  console.log("intentamos agregar el producto : ");
+  //console.log(req);
+  console.log(req.body);
   const producto = req.body;
-  const requeridos = ["nombre", "precio", "categoria_id", "proveedor_id"];
+  const requeridos = ["nombre", "precio", "categoria_id", "proveedor_id","slug_producto"];
 
   for (const campo of requeridos) {
+    console.log("llega a validar: " + campo)
     if (!producto[campo]) {
       return res.status(400).json({ mensaje: `El campo '${campo}' es obligatorio.` });
     }
   }
 
   try {
+    console.log("llega a insert antes de bd")
     const insertId = await productosModel.insertarProducto(producto);
     res.status(201).json({
       mensaje: "Producto registrado correctamente.",

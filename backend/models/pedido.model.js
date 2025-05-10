@@ -40,7 +40,13 @@ async function obtenerMisPedidos(usuario_id) {
  * @param {Object} datos
  */
 async function crearPedidoConSP({ usuario_id, total, metodo_pago, cupon, direccion_envio, notas }) {
-  const [resultado] = await db.query(`
+  console.log("Estos son los campos para chatGPT " + parseInt(usuario_id) + " " +
+    parseFloat(total) + " " +
+    metodo_pago + " " + 
+    cupon + " " +
+    direccion_envio?.trim() + " " +
+    notas?.trim())
+  const[[[resultado]]]= await db.query(`
     CALL sp_crear_pedido_completo(?, ?, ?, ?, ?, ?)
   `, [
     parseInt(usuario_id),
@@ -50,8 +56,9 @@ async function crearPedidoConSP({ usuario_id, total, metodo_pago, cupon, direcci
     direccion_envio?.trim(),
     notas?.trim()
   ]);
-
-  const pedido_id = resultado?.[0]?.pedido_id ?? null;
+  console.log("Resultado de crear pedido: ");
+  console.dir(resultado, { depth: null }); 
+  const pedido_id = resultado.pedido_id;
 
   if (!pedido_id) {
     throw new Error("No se pudo crear el pedido. Verifica los datos.");

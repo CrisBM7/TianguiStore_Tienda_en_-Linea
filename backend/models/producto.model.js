@@ -42,6 +42,7 @@ async function obtenerProductoPorId(id) {
 // Estructura extendida para productos físicos y digitales.
 // ───────────────────────────────────────────────
 async function insertarProducto(datos) {
+  console.log("Entra a insertar producto SQL");
   const {
     nombre, slug_producto, descripcion, especificaciones = "",
     precio, descuento = 0, stock = 0,
@@ -63,10 +64,10 @@ async function insertarProducto(datos) {
       imagen_url, video_url, modelo_3d_url,
       stock_ilimitado, mostrar_sin_stock,
       publicado, destacado, meses_sin_intereses,
-      estado_visible, status, tipo_pago,
+      estado_visible, status,
       peso_kg, dimensiones_cm, garantia_meses,
       es_digital, tipo_digital, archivo_descarga_url, clave_acceso, duracion_dias
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `, [
     nombre?.trim(),
     slug_producto?.trim(),

@@ -25,16 +25,44 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const formData = new FormData();
 
+    console.log(document.getElementById("nombre").value.trim());
+
     // 📦 Campos simples: recoger los valores del formulario y agregarlos al FormData
     formData.append("nombre", document.getElementById("nombre").value.trim());
     formData.append("descripcion", document.getElementById("descripcion").value.trim());
     formData.append("precio", document.getElementById("precio").value);
     formData.append("stock", document.getElementById("stock").value);
-    formData.append("categoria_id", document.getElementById("categoria_id").value);
-    formData.append("marca_id", document.getElementById("marca_id").value);
+    formData.append("categoria_id", 1);
+    formData.append("marca_id", 1);
     formData.append("tipo_pago", document.getElementById("tipo_pago").value);
     formData.append("publicado", document.getElementById("publicado").checked);
     formData.append("meses_sin_intereses", document.getElementById("meses_sin_intereses").checked);
+
+    const nombre = document.getElementById("nombre");
+    const descripcion = document.getElementById("descripcion");
+    const precio = document.getElementById("precio");
+    const stock = document.getElementById("stock");
+    const categoria_id = document.getElementById("categoria_id");
+    const marca_id = document.getElementById("marca_id");
+    const tipo_pago = document.getElementById("tipo_pago");
+    const publicado = document.getElementById("publicado");
+    const meses_sin_intereses = document.getElementById("meses_sin_intereses");
+
+
+    const datos = {
+      nombre: nombre.value.trim(),
+      descripcion: descripcion.value.trim(),
+      precio: precio.value.trim(),
+      stock: stock.value,
+      categoria_id: 1,
+      marca_id: marca_id.value.trim() || null,
+      tipo_pago: tipo_pago.value.trim() || null,
+      publicado: publicado.value.trim(),
+      meses_sin_intereses: meses_sin_intereses.value.trim(),
+      proveedor_id: 1,
+      slug_producto: "lol"
+    };
+
 
     // 🖼️ Imágenes múltiples: Agregar todas las imágenes seleccionadas al FormData
     const imagenes = document.getElementById("imagenes").files;
@@ -47,18 +75,16 @@ document.addEventListener("DOMContentLoaded", () => {
     if (modelo3d) {
       formData.append("modelo3d", modelo3d);
     }
-
-    // Enviar los datos al servidor
+    // Envkiar los datos al servidor
     try {
       console.log("Agregar producto")
-      console.log(formData)
       const res = await fetch("/productos", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(datos)
       });
-      console.log(res);
-
       const data = await res.json();
+      console.log(res);
 
       // Manejo de respuesta exitosa o error
       if (!res.ok) {

@@ -10,7 +10,7 @@ const {
 } = require("../controllers/pedidoController");
 
 const {
-  verificarAutenticacion,
+ //verificarAutenticacion,
   verificarPermiso
 } = require("../middlewares/authMiddleware");
 
@@ -21,7 +21,7 @@ const pedidoSchema = require("../middlewares/validacion/pedidoSchema");
 // 📦 Obtener todos los pedidos (solo admin o soporte)
 router.get(
   "/",
-  verificarAutenticacion,
+ //verificarAutenticacion,
   verificarPermiso("pedidos", "leer"),
   obtenerPedidos
 );
@@ -29,15 +29,15 @@ router.get(
 // 📦 Obtener solo los pedidos del usuario autenticado (cliente)
 router.get(
   "/mis",
-  verificarAutenticacion,
+ //verificarAutenticacion,
   obtenerMisPedidos
 );
 
 // 🛒 Crear pedido desde productos directos
 router.post(
   "/",
-  verificarAutenticacion,
-  verificarPermiso("pedidos", "crear"),
+ //verificarAutenticacion,
+  //verificarPermiso("pedidos", "crear"),
   pedidoSchema,
   validarResultados,
   crearPedido
@@ -46,7 +46,7 @@ router.post(
 // 🛍️ Crear pedido desde carrito del cliente
 router.post(
   "/desde-carrito",
-  verificarAutenticacion,
+ //verificarAutenticacion,
   verificarPermiso("pedidos", "crear"),
   pedidoSchema,
   validarResultados,
@@ -56,7 +56,7 @@ router.post(
 // ❌ Cancelar un pedido (cliente propio o admin)
 router.put(
   "/:id/cancelar",
-  verificarAutenticacion,
+ //verificarAutenticacion,
   verificarPermiso("pedidos", "cancelar"),
   cancelarPedido
 );
