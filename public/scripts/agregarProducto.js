@@ -48,6 +48,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const publicado = document.getElementById("publicado");
     const meses_sin_intereses = document.getElementById("meses_sin_intereses");
 
+    slugProductoAutogenerado = [...Array(10)]
+    .map(() => Math.random().toString(36)[2]) // base36 da letras y números
+    .join('');
+
+    console.log("Este es el slug producto autogenerado: "+ slugProductoAutogenerado);
+
 
     const datos = {
       nombre: nombre.value.trim(),
@@ -60,7 +66,8 @@ document.addEventListener("DOMContentLoaded", () => {
       publicado: publicado.value.trim(),
       meses_sin_intereses: meses_sin_intereses.value.trim(),
       proveedor_id: 1,
-      slug_producto: "lol"
+      slug_producto: slugProductoAutogenerado
+
     };
 
 
@@ -75,7 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (modelo3d) {
       formData.append("modelo3d", modelo3d);
     }
-    // Envkiar los datos al servidor
+    // Enviar los datos al servidor
     try {
       console.log("Agregar producto")
       const res = await fetch("/productos", {
