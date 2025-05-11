@@ -47,7 +47,7 @@ async function insertarProducto(datos) {
     nombre, slug_producto, descripcion, especificaciones = "",
     precio, descuento = 0, stock = 0,
     categoria_id, marca_id = null, proveedor_id = null, tipo_publicacion_id = null, sku = null,
-    imagen_url = null, video_url = null, modelo_3d_url = null,
+    imagen_url, video_url = null, modelo_3d_url = null,
     stock_ilimitado = false, mostrar_sin_stock = false,
     publicado = false, destacado = false, meses_sin_intereses = false,
     tipo_pago = "efectivo", estado_visible = "visible", status = "activo",
