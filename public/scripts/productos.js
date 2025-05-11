@@ -53,7 +53,7 @@ async function cargarProductos() {
             const html = `
                 <div class="col">
                     <div class="card h-100 shadow-sm animate-fade-in">
-                        <img src="${imagen}" alt="${nombre}" class="card-img-top"
+                        <img src="${imagen}" alt="${nombre}" class="card-img-top" style="max-width: 250px; height: auto; display: block; margin: 0 auto;"
                              onerror="this.onerror=null; this.src='/imagenes/default.png';">
                         <div class="card-body">
                             <h5 class="card-title">${nombre}</h5>

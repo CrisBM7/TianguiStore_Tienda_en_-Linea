@@ -217,3 +217,13 @@ footer.page-footer {
     font-size: 1rem;
   }
 }
+
+.card img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.8rem; 
+  display: block;
+  margin: 0 auto;
+}
+
+

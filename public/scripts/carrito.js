@@ -209,15 +209,29 @@ async function realizarPedidoDesdeLocalStorage() {
     }))
   };
 
+  const usuario = JSON.parse(localStorage.getItem("usuario")) || [];
+  console.log("Local storage Usuario: ");
+  console.dir(usuario, { depth: null });
+  console.log("Informacion del carrito ");
+  console.dir(carrito, { depth: null });
+  console.log(carrito.length);
+  let totalProductos = 0;
+
+  for(let i = 0; i < carrito.length ; i++){
+    let precioPorProducto = carrito[i].precio * carrito[i].cantidad;
+    totalProductos += precioPorProducto;
+    console.log("El total va siendo: "+totalProductos);
+  }
+
   const pedidoCarrito = {
     usuario : {
-     usuario_id : "1"
+     usuario_id : usuario.usuario_id
     },
-    total : "545",
+    total : totalProductos,
     metodo_pago : "tarjeta",
     cupon : "",
     direccion_envio : "Calle locochona",
-    notas : "lol"
+    notas : ""
   }
 
   try {
@@ -252,15 +266,7 @@ async function realizarPedidoDesdeLocalStorage() {
         body: JSON.stringify(pedidoProducto)
         
       });
-    }
-
-
-
-
-
-    const pedidoProducto = {
-      fk_pedidos: "?",
-      fk_productos : "?"
+      console.log(resPedidoProducto);
     }
 
     if (res.ok) {
