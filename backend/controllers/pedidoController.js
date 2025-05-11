@@ -13,6 +13,7 @@
  * 🧠 Basado en procedimiento almacenado: sp_crear_pedido_completo
  */
 
+const { body } = require("express-validator");
 const pedidoModel = require("../models/pedido.model"); // Uso del modelo para lógica de negocio
 
 /**
@@ -83,6 +84,43 @@ exports.crearPedido = async (req, res) => {
     res.status(500).json({ mensaje: "Error interno al crear el pedido" });
   }
 };
+
+
+/**
+ * ➕ POST /api/makepp
+ * Crear pedido desde formulario manual (con parámetros individuales).
+ */
+exports.crearPedidoProducto = async (req, res) => {
+  console.log("Este es el body de mi PedidoProducto " + req.body);
+  console.dir(req.body, { depth: null });
+  let fkPedidoLocal = req.body.fk_pedidos;
+  let fkProductosLocal = req.body.fk_productos;
+  console.log(body.fk_pedidos);
+  const pedidoProducto = await pedidoModel.crearPedidoProducto(
+    {
+      fkPedidos: fkPedidoLocal,
+      fkProductos: fkProductosLocal
+    }
+  );
+  
+    res.status(201).json({ mensaje: "Pedidos producto creado correctamente", pedidoProducto });
+};
+
+/**
+ * ➕ GET /api/pedidos informacion
+ * Crear pedido desde formulario manual (con parámetros individuales).
+ */
+
+exports.getPedidoProducto = async (req, res) => {
+  const { id } = req.params;
+  console.log("Este es el id de el get PedidoProducto " + id);
+  const pedidos = await pedidoModel.getPedidoProducto(id);
+  //console.dir(pedidos[0], { depth: null });
+  console.log("Resultado getPedidoProducto:  ", pedidos);
+    res.status(201).json({ mensaje: "Get informacion correctamente", pedidos });
+};
+
+
 
 /**
  * 🛒 POST /api/pedidos/carrito

@@ -36,6 +36,45 @@ async function obtenerMisPedidos(usuario_id) {
 }
 
 /**
+ *  Crear la tabla pedido producto para la relacion.
+ * 
+ */
+async function crearPedidoProducto({fkPedidos, fkProductos}){
+  console.log("Modelo crearpedidos log " + fkPedidos + " " + fkProductos);
+  const [rows] = await db.query(`
+    INSERT INTO pedido_productos( fk_pedidos, fk_productos)
+    VALUES (?,?)
+    `,
+  [
+    fkPedidos,
+    fkProductos
+  ]);
+  return rows;
+}
+
+/**
+ *  Get para obtener la informacion relacionada de producto pedidos
+ * 
+ */
+async function getPedidoProducto(pedido_id){
+  console.log("Modelo getPedidoProducto log " + pedido_id);
+  const [rows] = await db.query(`
+    SELECT p.pedido_id, 
+    pr.producto_id, pr.nombre AS nombre_producto, pr.precio 
+    FROM pedidos p 
+    JOIN pedido_productos pp ON p.pedido_id = pp.fk_pedidos 
+    JOIN productos pr ON pr.producto_id = pp.fk_productos
+    WHERE p.pedido_id = ?
+    `,
+  [
+    pedido_id
+  ]);
+  console.log("resultado: ", rows);
+  return rows;
+}
+
+
+/**
  * ➕ Crear un nuevo pedido utilizando el procedimiento almacenado.
  * @param {Object} datos
  */
@@ -121,5 +160,7 @@ module.exports = {
   actualizarEstadoPedido,
   borrarPedidoLogico,
   calcularTotalCarrito,
-  limpiarCarrito
+  limpiarCarrito,
+  crearPedidoProducto,
+  getPedidoProducto
 };

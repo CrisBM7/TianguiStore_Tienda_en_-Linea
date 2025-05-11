@@ -6,7 +6,9 @@ const {
   obtenerMisPedidos,
   crearPedido,
   cancelarPedido,
-  crearPedidoDesdeCarrito
+  crearPedidoProducto,
+  crearPedidoDesdeCarrito,
+  getPedidoProducto
 } = require("../controllers/pedidoController");
 
 const {
@@ -42,6 +44,26 @@ router.post(
   validarResultados,
   crearPedido
 );
+
+//Crear relacion pedidos productos
+router.post(
+  "/makepp",
+  //pedidoSchema,
+  //validarResultados,
+  crearPedidoProducto
+);
+
+ //Ruta para traer informacion de pedido producto
+  router.get("/traerinfopedido/:id", async (req, res) => {
+  try {
+    console.log("entra a traerinfopedido")
+    await getPedidoProducto(req, res);
+  } catch (error) {
+    console.error("❌ Error al enviar la informacion con el get:", error);
+    res.status(500).json({ mensaje: "Error interno al mandar la informacion con el get." });
+  }
+});
+
 
 // 🛍️ Crear pedido desde carrito del cliente
 router.post(

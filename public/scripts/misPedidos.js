@@ -54,6 +54,7 @@ async function cargarPedidosUsuario() {
         // Para cada pedido, se obtiene y muestra la información relevante
         for (const pedido of pedidos) {
             const productosHTML = await obtenerProductosHTML(pedido.pedido_id);
+            console.log("Body del pedido: " + productosHTML.response);
             const puedeCancelar = pedido.estado_id === 1 || pedido.estado_id === 2;
 
             const filaHTML = `
@@ -90,11 +91,17 @@ async function cargarPedidosUsuario() {
  */
 async function obtenerProductosHTML(pedidoId) {
     try {
-        const response = await fetch(`/pedidos/${pedidoId}/productos`, { credentials: "include" });
+        console.log("Entro a obtener productosHTML");
+        const response = await fetch(`/pedidos/traerinfopedido/${pedidoId}`, { credentials: "include" });
+
+        const pedidosMainJS = await response.json();
+        pedidos = pedidosMainJS.pedidos;
+        console.log("Respuesta del la ruta: ", pedidos);
+         
         if (!response.ok) throw new Error("No se pudieron obtener los productos.");
 
-        const productos = await response.json();
-        return productos.map(p => `<li>${p.nombre} (${p.cantidad})</li>`).join("");
+       
+        return pedidos.map(p => `<li>${p.nombre_producto} (${p.precio})</li>`).join("");
     } catch (error) {
         console.error(`❌ Error al obtener productos del pedido ${pedidoId}:`, error);
         return `<li class="text-danger">Error al cargar productos</li>`;

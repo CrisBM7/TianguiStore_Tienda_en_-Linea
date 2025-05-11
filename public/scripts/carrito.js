@@ -231,7 +231,37 @@ async function realizarPedidoDesdeLocalStorage() {
     });
 
     const data = await res.json();
-    
+    console.log("pedido CREADO");
+    console.log(data);
+
+    console.log("ITEMS:");
+    for (const item of carrito) {
+      console.log(item);
+      //TODO Mi registro de Pedido por producto
+      const pedidoProducto = {
+          fk_productos : item.id,
+          fk_pedidos : data.pedido_id
+      }
+
+      const resPedidoProducto = await fetch(`${BASE_URL}/pedidos/makepp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(pedidoProducto)
+        
+      });
+    }
+
+
+
+
+
+    const pedidoProducto = {
+      fk_pedidos: "?",
+      fk_productos : "?"
+    }
 
     if (res.ok) {
       localStorage.removeItem("carrito"); // Vaciar carrito tras el pedido
