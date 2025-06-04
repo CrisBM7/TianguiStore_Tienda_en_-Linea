@@ -1,26 +1,33 @@
+// 📁 routes/pedidos.js
 const express = require("express");
 const router = express.Router();
 
+// 🧩 Controladores
 const {
   obtenerPedidos,
   obtenerMisPedidos,
   crearPedido,
   cancelarPedido,
-  crearPedidoProducto,
   crearPedidoDesdeCarrito,
-  getPedidoProducto
+  obtenerProductosDelPedido,
+  listarTodosLosPedidos,
 } = require("../controllers/pedidoController");
 
+// 🔐 Middlewares de seguridad
 const {
- //verificarAutenticacion,
-  verificarPermiso
+  verificarAutenticacion,
+  verificarPermiso,
 } = require("../middlewares/authMiddleware");
 
+// 🧪 Validación de datos
 const validarResultados = require("../middlewares/validacion/validarResultados");
 const pedidoSchema = require("../middlewares/validacion/pedidoSchema");
 
+// ════════════════════════════════════════════════════════════════
+// 📦 CONSULTAS DE PEDIDOS
+// ════════════════════════════════════════════════════════════════
 
-// 📦 Obtener todos los pedidos (solo admin o soporte)
+// 📄 Obtener todos los pedidos (solo admin o soporte)
 router.get(
   "/",
  //verificarAutenticacion,
@@ -28,14 +35,24 @@ router.get(
   obtenerPedidos
 );
 
-// 📦 Obtener solo los pedidos del usuario autenticado (cliente)
-router.post(
-  "/mis",
- //verificarAutenticacion,
-  obtenerMisPedidos
+// 🧑‍💼 Obtener los pedidos del usuario autenticado
+router.get("/mis", verificarAutenticacion, obtenerMisPedidos);
+
+// 🔍 Obtener productos de un pedido específico
+router.get("/:id/productos", verificarAutenticacion, obtenerProductosDelPedido);
+// 🗂️ Obtener todos los pedidos con filtros y paginación (solo admin)
+router.get(
+  "/admin/listado",
+  verificarAutenticacion,
+  verificarPermiso("pedidos", "leer"),
+  listarTodosLosPedidos
 );
 
-// 🛒 Crear pedido desde productos directos
+// ════════════════════════════════════════════════════════════════
+// 🛒 CREACIÓN DE PEDIDOS
+// ════════════════════════════════════════════════════════════════
+
+// 🛍️ Crear pedido desde selección directa de productos
 router.post(
   "/",
  //verificarAutenticacion,
@@ -45,27 +62,7 @@ router.post(
   crearPedido
 );
 
-//Crear relacion pedidos productos
-router.post(
-  "/makepp",
-  //pedidoSchema,
-  //validarResultados,
-  crearPedidoProducto
-);
-
- //Ruta para traer informacion de pedido producto
-  router.get("/traerinfopedido/:id", async (req, res) => {
-  try {
-    console.log("entra a traerinfopedido")
-    await getPedidoProducto(req, res);
-  } catch (error) {
-    console.error("❌ Error al enviar la informacion con el get:", error);
-    res.status(500).json({ mensaje: "Error interno al mandar la informacion con el get." });
-  }
-});
-
-
-// 🛍️ Crear pedido desde carrito del cliente
+// 🛒 Crear pedido desde carrito persistido
 router.post(
   "/desde-carrito",
  //verificarAutenticacion,
@@ -75,7 +72,11 @@ router.post(
   crearPedidoDesdeCarrito
 );
 
-// ❌ Cancelar un pedido (cliente propio o admin)
+// ════════════════════════════════════════════════════════════════
+// ❌ GESTIÓN Y CANCELACIÓN
+// ════════════════════════════════════════════════════════════════
+
+// ❌ Cancelar pedido (solo si el usuario tiene permiso)
 router.put(
   "/:id/cancelar",
  //verificarAutenticacion,

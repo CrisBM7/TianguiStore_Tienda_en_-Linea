@@ -1,6 +1,13 @@
--- ================================================================
--- 🇲🇽 TianguiStore – Estructura Expandida de Base de Datos
--- ================================================================
+-- ╔══════════════════════════════════════════════════════════════════════╗
+-- ║  ESTRUCTURA COMPLETA DE BASE DE DATOS: TIANGUISTORE (ACTUALIZADA)    ║         ║
+-- ║  Fecha de actualización: 2025-05-21                                  ║
+-- ╚══════════════════════════════════════════════════════════════════════╝
+
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🇲🇽 TIANGUISTORE – ESTRUCTURA EXPANDIDA DE BASE DE DATOS
+-- ════════════════════════════════════════════════════════════════════
 -- 🧱 Versión: 1.0.0
 -- 📅 Fecha de generación: 2025-05-01
 -- 👨‍💻 Autor: I.S.C. Erick Renato Vega Ceron
@@ -26,9 +33,11 @@
 -- ✅ Permisos para TRIGGERS, EVENTS y FOREIGN KEY
 -- ✅ Charset: UTF-8 extendido (emoji, tildes, multilenguaje)
 
--- ================================================================
--- 🧭 Módulo base: Inicialización del sistema y configuración global
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🧭 MÓDULO BASE: INICIALIZACIÓN DEL SISTEMA Y CONFIGURACIÓN GLOBAL
+-- ════════════════════════════════════════════════════════════════════
 
 -- ⚙️ Activar programador de eventos (necesario para cron internos)
 SET GLOBAL event_scheduler = ON;
@@ -46,17 +55,129 @@ USE tienda_db;
 -- (para permitir la creación ordenada de tablas con dependencias cruzadas)
 SET FOREIGN_KEY_CHECKS = 0;
 
--- =====================================================================
--- 📦 MÓDULO: estados_pedido
--- ---------------------------------------------------------------------
--- Catálogo maestro de estados que puede tener un pedido dentro del 
--- sistema TianguiStore. Utilizado para trazabilidad y control lógico.
--- =====================================================================
 
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 📜 MÓDULO: AUDITORIA_ERRORES (Versión Extendida)
+-- 📦 📜 MÓDULO: AUDITORIA_ERRORES (Versión Extendida)
+-- ════════════════════════════════════════════════════════════════════
+-- Registro de errores y excepciones en el sistema.
+-- Incluye trazabilidad completa con dirección IP, agente del usuario,
+-- módulo origen, detalles SQL, y entrada original en formato JSON.
+-- Registro de errores y excepciones en el sistema.
+-- Incluye trazabilidad completa con dirección IP, agente del usuario,
+-- módulo origen, detalles SQL, y entrada original en formato JSON.
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS auditoria_errores (
+  log_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'Identificador único del registro',
+  fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Fecha y hora del registro',
+
+  modulo VARCHAR(100) NOT NULL COMMENT 'Nombre lógico del módulo (ej. Middleware, Pedido, Usuario)',
+  procedimiento VARCHAR(100) NOT NULL COMMENT 'Función o procedimiento donde ocurrió el error',
+  usuario_id INT NULL COMMENT 'ID del usuario relacionado (si aplica)',
+  direccion_ip VARCHAR(50) DEFAULT NULL COMMENT 'IP del cliente que originó el error',
+  user_agent VARCHAR(255) DEFAULT NULL COMMENT 'Agente del navegador o cliente (User-Agent)',
+
+  datos_entrada JSON NULL COMMENT 'Datos enviados por el cliente (body en JSON)',
+  `sqlstate` VARCHAR(10) DEFAULT NULL COMMENT 'Código SQLSTATE o error lógico de aplicación',
+  mysql_errno INT DEFAULT NULL COMMENT 'Código de error MySQL simulado o real (ej. 1064, 1048)',
+  mensaje TEXT NOT NULL COMMENT 'Mensaje de error o detalles concatenados'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🛠️ MÓDULO: CONFIGURACIONES (Parámetros del sistema)
+-- ════════════════════════════════════════════════════════════════════
+-- Tabla de configuración global para TianguiStore.
+-- Permite definir parámetros clave-valor con validación de tipo, visibilidad
+-- y protección frente a ediciones no deseadas desde la interfaz.
+-- Ideal para administración avanzada de ajustes en tiempo real.
+
+CREATE TABLE IF NOT EXISTS configuraciones (
+  clave VARCHAR(100) PRIMARY KEY
+    COMMENT 'Clave única de la configuración (ej. nombre_sitio, modo_mantenimiento)',
+
+  valor TEXT NOT NULL
+    COMMENT 'Valor actual del parámetro (puede ser texto, número, booleano o JSON)',
+  
+  valor_por_defecto TEXT DEFAULT NULL
+    COMMENT 'Valor predeterminado recomendado para restauraciones o fallback',
+
+  tipo ENUM('texto', 'numero', 'booleano', 'json', 'url', 'email', 'color') DEFAULT 'texto'
+    COMMENT 'Tipo de dato validado (se usa para validación y visualización)',
+
+  descripcion TEXT
+    COMMENT 'Descripción técnica o de negocio sobre el uso del parámetro',
+  
+  modulo VARCHAR(50) DEFAULT 'sistema'
+    COMMENT 'Módulo funcional asociado (sistema, tienda, marketing, seguridad, etc.)',
+
+  visible BOOLEAN DEFAULT TRUE
+    COMMENT '¿Es visible en el panel de administración o configuración web?',
+  
+  solo_lectura BOOLEAN DEFAULT FALSE
+    COMMENT '¿Se bloquea edición desde frontend o API no autorizada?',
+
+  actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    COMMENT 'Marca de tiempo de la última actualización del registro'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 🗂️ VALORES POR DEFECTO PARA LA TABLA `configuraciones`
+-- ════════════════════════════════════════════════════════════════════
+
+INSERT INTO configuraciones (clave, valor, valor_por_defecto, tipo, descripcion, modulo, visible, solo_lectura)
+VALUES 
+-- 📌 Configuración General
+('nombre_sitio', 'TianguiStore', 'TianguiStore', 'texto', 'Nombre visible de la tienda', 'sistema', TRUE, FALSE),
+('modo_mantenimiento', 'false', 'false', 'booleano', 'Activa/desactiva el mantenimiento global del sistema', 'sistema', TRUE, TRUE),
+('moneda', 'MXN', 'MXN', 'texto', 'Moneda predeterminada (ej. MXN, USD)', 'sistema', TRUE, TRUE),
+('porcentaje_impuesto', '16', '16', 'numero', 'IVA estándar aplicado a productos y servicios', 'tienda', TRUE, FALSE),
+('impuestos_incluidos', 'true', 'true', 'booleano', 'Indica si los precios incluyen impuestos', 'tienda', TRUE, FALSE),
+
+-- 📧 Contacto y Branding
+('correo_contacto', 'soporte@tianguistore.com', 'soporte@tianguistore.com', 'email', 'Correo visible para atención al cliente', 'sistema', TRUE, FALSE),
+('logo_url', '/imagenes/logo.png', '/imagenes/logo.png', 'url', 'Ruta al logotipo oficial de la tienda', 'sistema', TRUE, FALSE),
+('mensaje_bienvenida', '¡Bienvenido a TianguiStore!', '¡Bienvenido a TianguiStore!', 'texto', 'Mensaje mostrado a nuevos usuarios', 'sistema', TRUE, FALSE),
+
+-- 🔖 Promociones y Marketing
+('promociones_activas', 'true', 'true', 'booleano', '¿Mostrar automáticamente promociones vigentes?', 'marketing', TRUE, FALSE),
+('mostrar_combos', 'true', 'true', 'booleano', '¿Habilitar combos de productos en la tienda?', 'marketing', TRUE, FALSE),
+('mostrar_cupones', 'true', 'true', 'booleano', '¿Permitir el uso de cupones de descuento en checkout?', 'marketing', TRUE, FALSE),
+('dias_publicacion_destacada', '7', '7', 'numero', 'Días que dura un producto destacado en la portada', 'marketing', TRUE, FALSE),
+
+-- 🆓 Plan gratuito y límites
+('max_productos_gratis', '15', '15', 'numero', 'Cantidad máxima de productos permitidos en plan gratuito', 'planes', TRUE, FALSE),
+
+-- 🔒 Legal y cumplimiento
+('politica_privacidad_url', '/legal/privacidad.html', '/legal/privacidad.html', 'url', 'Enlace a la política de privacidad del sitio', 'legal', TRUE, TRUE);
+  log_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'Identificador único del registro',
+  fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Fecha y hora del registro',
+
+  modulo VARCHAR(100) NOT NULL COMMENT 'Nombre lógico del módulo (ej. Middleware, Pedido, Usuario)',
+  procedimiento VARCHAR(100) NOT NULL COMMENT 'Función o procedimiento donde ocurrió el error',
+  usuario_id INT NULL COMMENT 'ID del usuario relacionado (si aplica)',
+  direccion_ip VARCHAR(50) DEFAULT NULL COMMENT 'IP del cliente que originó el error',
+  user_agent VARCHAR(255) DEFAULT NULL COMMENT 'Agente del navegador o cliente (User-Agent)',
+
+  datos_entrada JSON NULL COMMENT 'Datos enviados por el cliente (body en JSON)',
+  `sqlstate` VARCHAR(10) DEFAULT NULL COMMENT 'Código SQLSTATE o error lógico de aplicación',
+  mysql_errno INT DEFAULT NULL COMMENT 'Código de error MySQL simulado o real (ej. 1064, 1048)',
+  mensaje TEXT NOT NULL COMMENT 'Mensaje de error o detalles concatenados'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ================================================================
+-- 📦 MÓDULO: estados_pedido + pedidos
+-- Sistema de gestión de pedidos para TianguiStore
+-- ================================================================
+
+-- Tabla de pedidos
 CREATE TABLE IF NOT EXISTS pedidos (
   pedido_id INT AUTO_INCREMENT PRIMARY KEY,
 
-  cliente_id INT NOT NULL COMMENT 'ID del usuario que realizó el pedido',
+  usuario_id INT NOT NULL COMMENT 'ID del usuario que realizó el pedido',
   estado_id INT NOT NULL COMMENT 'Estado actual del pedido',
   metodo_pago ENUM('efectivo', 'tarjeta', 'transferencia', 'paypal', 'qr', 'oxxo') NOT NULL DEFAULT 'efectivo',
 
@@ -69,26 +190,72 @@ CREATE TABLE IF NOT EXISTS pedidos (
   notas TEXT,
   coordenadas_entrega POINT,
 
+  borrado_logico BOOLEAN NOT NULL DEFAULT 0 COMMENT 'Marca lógica de borrado',
+
   fecha_pedido DATETIME DEFAULT CURRENT_TIMESTAMP,
-  fecha_entregado 
-  DATETIME DEFAULT NULL,
+  fecha_entregado DATETIME DEFAULT NULL,
   fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   firma_hash CHAR(64) COMMENT 'Hash de integridad del pedido',
   fecha_firmado TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-  FOREIGN KEY (cliente_id) REFERENCES usuarios(usuario_id),
+  FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id),
   FOREIGN KEY (estado_id) REFERENCES estados_pedido(estado_id),
   FOREIGN KEY (cupon) REFERENCES cupones(codigo) ON DELETE SET NULL ON UPDATE CASCADE,
 
-  INDEX idx_cliente (cliente_id),
+  INDEX idx_cliente (usuario_id),
   INDEX idx_estado (estado_id),
   INDEX idx_fecha (fecha_pedido),
   INDEX idx_cupon (cupon)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Tabla: carrito
-CREATE TABLE carrito (
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🧾 TABLA: DETALLE_PEDIDO (Versión extendida y validada)
+-- ════════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS detalle_pedido (
+  detalle_id INT AUTO_INCREMENT PRIMARY KEY,
+
+  pedido_id INT NOT NULL,
+  producto_id INT NOT NULL,
+
+  cantidad INT NOT NULL DEFAULT 1,
+  precio_unitario DECIMAL(10,2) NOT NULL COMMENT 'Precio base del producto en el momento de la compra',
+  descuento_aplicado DECIMAL(10,2) DEFAULT 0.00 COMMENT 'Monto de descuento aplicado a este producto',
+  iva_porcentaje DECIMAL(5,2) DEFAULT 0.00 COMMENT 'Porcentaje de IVA aplicado (ej. 16)',
+
+  iva_monto DECIMAL(10,2) GENERATED ALWAYS AS (
+    (cantidad * (precio_unitario - descuento_aplicado)) * (iva_porcentaje / 100)
+  ) STORED,
+
+  subtotal DECIMAL(10,2) GENERATED ALWAYS AS (
+    cantidad * (precio_unitario - descuento_aplicado)
+  ) STORED,
+
+  total DECIMAL(10,2) GENERATED ALWAYS AS (
+    subtotal + iva_monto
+  ) STORED,
+
+  calificacion TINYINT UNSIGNED DEFAULT NULL
+    CHECK (calificacion BETWEEN 1 AND 5)
+    COMMENT 'Calificación del producto (opcional, 1 a 5 estrellas)',
+
+  comentario TEXT COMMENT 'Comentario opcional del cliente sobre este producto',
+  fecha_calificacion DATETIME DEFAULT NULL COMMENT 'Fecha en que se calificó este producto',
+
+  fecha_detalle TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Fecha de registro del detalle',
+
+  FOREIGN KEY (pedido_id) REFERENCES pedidos(pedido_id) ON DELETE CASCADE,
+  FOREIGN KEY (producto_id) REFERENCES productos(producto_id) ON DELETE CASCADE,
+
+  INDEX idx_pedido (pedido_id),
+  INDEX idx_producto (producto_id),
+  INDEX idx_calificacion (calificacion),
+  INDEX idx_fecha (fecha_detalle)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- Tabla de carrito
+CREATE TABLE IF NOT EXISTS carrito (
   id INT AUTO_INCREMENT PRIMARY KEY,
   usuario_id INT NOT NULL,
   producto_id INT NOT NULL,
@@ -104,38 +271,9 @@ CREATE TABLE carrito (
     ON DELETE CASCADE,
 
   CONSTRAINT uq_carrito UNIQUE (usuario_id, producto_id)
-);
-
-
-CREATE TABLE IF NOT EXISTS detalle_pedido (
-  detalle_id INT AUTO_INCREMENT PRIMARY KEY,
-
-  pedido_id INT NOT NULL,
-  producto_id INT NOT NULL,
-
-  cantidad INT NOT NULL DEFAULT 1,
-  precio_unitario DECIMAL(10,2) NOT NULL COMMENT 'Precio base del producto en el momento de la compra',
-  descuento_aplicado DECIMAL(10,2) DEFAULT 0.00 COMMENT 'Monto de descuento aplicado a este producto',
-  iva_porcentaje DECIMAL(5,2) DEFAULT 0.00 COMMENT 'Porcentaje de IVA aplicado (ej. 16)',
-  iva_monto DECIMAL(10,2) GENERATED ALWAYS AS (
-    (cantidad * (precio_unitario - descuento_aplicado)) * (iva_porcentaje / 100)
-  ) STORED,
-
-  subtotal DECIMAL(10,2) GENERATED ALWAYS AS (
-    cantidad * (precio_unitario - descuento_aplicado)
-  ) STORED,
-
-  total DECIMAL(10,2) GENERATED ALWAYS AS (
-    (cantidad * (precio_unitario - descuento_aplicado)) + iva_monto
-  ) STORED,
-
-  FOREIGN KEY (pedido_id) REFERENCES pedidos(pedido_id) ON DELETE CASCADE,
-  FOREIGN KEY (producto_id) REFERENCES productos(producto_id) ON DELETE CASCADE,
-
-  INDEX idx_pedido (pedido_id),
-  INDEX idx_producto (producto_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Tabla de cupones
 CREATE TABLE IF NOT EXISTS cupones (
   cupon_id INT AUTO_INCREMENT PRIMARY KEY,
 
@@ -170,7 +308,7 @@ CREATE TABLE IF NOT EXISTS cupones (
   INDEX idx_estado (activo, borrado_logico)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-
+-- Catálogo de estados de pedido
 CREATE TABLE IF NOT EXISTS estados_pedido (
   estado_id INT AUTO_INCREMENT PRIMARY KEY,
   estado_nombre VARCHAR(50) NOT NULL UNIQUE COMMENT 'Nombre del estado (ej. Pendiente, Enviado)',
@@ -178,7 +316,7 @@ CREATE TABLE IF NOT EXISTS estados_pedido (
   fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Fecha de registro del estado'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 🔄 DATOS INICIALES SUGERIDOS
+-- Datos iniciales sugeridos para estados_pedido
 INSERT INTO estados_pedido (estado_nombre, descripcion) VALUES
 ('Pendiente', 'El pedido ha sido recibido pero aún no procesado'),
 ('Procesando', 'El pedido está siendo preparado'),
@@ -188,16 +326,18 @@ INSERT INTO estados_pedido (estado_nombre, descripcion) VALUES
 ('Reembolsado', 'El pedido ha sido devuelto y reembolsado')
 ON DUPLICATE KEY UPDATE descripcion = VALUES(descripcion);
 
--- ✅ VERIFICACIÓN DEL MÓDULO
+-- Verificación del módulo
 SELECT 'OK - estados_pedido' AS modulo, COUNT(*) AS registros FROM estados_pedido;
 
--- =====================================================================
--- 🔐 MÓDULO: roles_y_usuarios_completo
--- ---------------------------------------------------------------------
+
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🔐 MÓDULO: ROLES_Y_USUARIOS_COMPLETO
+-- ════════════════════════════════════════════════════════════════════
 -- Define roles, perfiles extendidos de usuarios, sistema de verificación,
 -- asociación a sucursales, postulaciones y soporte para fidelización.
 -- =====================================================================
-
 -- 🧑‍⚖️ Tabla: roles
 CREATE TABLE IF NOT EXISTS roles (
   rol_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -218,10 +358,14 @@ CREATE TABLE IF NOT EXISTS sucursales (
   fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 👤 Tabla: usuarios
+-- ════════════════════════════════════════════════════════════════════
+-- 👤 TABLA: USUARIOS (Versión extendida con nivel_id)
+-- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS usuarios (
   usuario_id INT AUTO_INCREMENT PRIMARY KEY,
-  rol_id INT NOT NULL DEFAULT 3,
+
+  rol_id INT NOT NULL DEFAULT 2,
+  nivel_id INT DEFAULT 1 COMMENT 'Nivel de fidelidad del usuario (1=base)',
   sucursal_id INT DEFAULT NULL COMMENT 'Sucursal asignada si es personal interno',
 
   correo_electronico VARCHAR(100) NOT NULL UNIQUE,
@@ -252,7 +396,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   portafolio_url VARCHAR(255),
 
   activo BOOLEAN DEFAULT TRUE,
-  borrado_logico BOOLEAN DEFAULT FALSE,  -- 👈 NUEVO CAMPO PARA ELIMINACIÓN LÓGICA
+  borrado_logico BOOLEAN DEFAULT FALSE COMMENT 'Eliminación lógica',
   verificado BOOLEAN DEFAULT FALSE,
 
   origen_reclutamiento ENUM('externo', 'interno', 'campaña', 'referido', 'fidelidad') DEFAULT 'externo',
@@ -266,8 +410,15 @@ CREATE TABLE IF NOT EXISTS usuarios (
   fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   FOREIGN KEY (rol_id) REFERENCES roles(rol_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  FOREIGN KEY (nivel_id) REFERENCES niveles_fidelidad(nivel_id) ON UPDATE CASCADE ON DELETE SET NULL,
   FOREIGN KEY (sucursal_id) REFERENCES sucursales(sucursal_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+
+
+
+
 
 -- 📧 Tabla: verificaciones de usuario
 CREATE TABLE IF NOT EXISTS verificaciones_usuario (
@@ -310,9 +461,11 @@ SELECT 'OK - usuarios' AS modulo, COUNT(*) FROM usuarios;
 SELECT 'OK - verificaciones_usuario' AS modulo, COUNT(*) FROM verificaciones_usuario;
 SELECT 'OK - sucursales' AS modulo, COUNT(*) FROM sucursales;
 SELECT 'OK - postulaciones' AS modulo, COUNT(*) FROM postulaciones;
--- =====================================================================
--- 📋 MÓDULO: logs_acciones (optimizado)
--- ---------------------------------------------------------------------
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 📋 MÓDULO: LOGS_ACCIONES (OPTIMIZADO)
+-- ════════════════════════════════════════════════════════════════════
 -- Registro eficiente y detallado de eventos de usuario para auditoría,
 -- trazabilidad y seguridad, diseñado para alta concurrencia y volumen.
 -- =====================================================================
@@ -356,15 +509,18 @@ DO
   DELETE FROM logs_acciones
   WHERE fecha < NOW() - INTERVAL 1000 DAY;
 
--- =====================================================================
--- 🏷️ MÓDULO: marcas
--- ---------------------------------------------------------------------
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🏷️ MÓDULO: MARCAS
+-- ════════════════════════════════════════════════════════════════════
 -- Catálogo de marcas comerciales con campos visuales y de SEO.
 -- =====================================================================
 CREATE TABLE IF NOT EXISTS marcas (
   marca_id INT AUTO_INCREMENT PRIMARY KEY,
   nombre_marca VARCHAR(100) NOT NULL UNIQUE COMMENT 'Nombre comercial visible de la marca',
-  slug_marca VARCHAR(100) NOT NULL UNIQUE COMMENT 'Identificador único para URL amigable (sin espacios)',
+  slug_marca VARCHAR(100) UNIQUE COMMENT 'Identificador único para URL amigable (sin espacios)',
+  slug_marca VARCHAR(100) UNIQUE COMMENT 'Identificador único para URL amigable (sin espacios)',
   descripcion TEXT COMMENT 'Historia o descripción de la marca',
   logo_url VARCHAR(255) COMMENT 'URL del logotipo oficial',
   micrositio_url VARCHAR(255) COMMENT 'Enlace externo a un sitio dedicado (opcional)',
@@ -380,15 +536,18 @@ CREATE TABLE IF NOT EXISTS marcas (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- =====================================================================
--- 📂 MÓDULO: categorias
--- ---------------------------------------------------------------------
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 📂 MÓDULO: CATEGORIAS
+-- ════════════════════════════════════════════════════════════════════
 -- Categorías principales del catálogo, con campos visuales y de control.
 -- =====================================================================
 CREATE TABLE IF NOT EXISTS categorias (
   categoria_id INT AUTO_INCREMENT PRIMARY KEY,
   nombre_categoria VARCHAR(100) NOT NULL UNIQUE,
-  slug_categoria VARCHAR(100) NOT NULL UNIQUE COMMENT 'Identificador único amigable para URLs',
+  slug_categoria VARCHAR(100) UNIQUE COMMENT 'Identificador único amigable para URLs',
+  slug_categoria VARCHAR(100) UNIQUE COMMENT 'Identificador único amigable para URLs',
   descripcion TEXT COMMENT 'Resumen o propósito de la categoría',
   icono_url VARCHAR(255) COMMENT 'Icono visual de la categoría (opcional)',
 
@@ -403,9 +562,11 @@ CREATE TABLE IF NOT EXISTS categorias (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- =====================================================================
--- 📁 MÓDULO: subcategorias
--- ---------------------------------------------------------------------
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 📁 MÓDULO: SUBCATEGORIAS
+-- ════════════════════════════════════════════════════════════════════
 -- Subcategorías dependientes de categorías padre, con control visual.
 -- =====================================================================
 CREATE TABLE IF NOT EXISTS subcategorias (
@@ -413,7 +574,8 @@ CREATE TABLE IF NOT EXISTS subcategorias (
   categoria_id INT NOT NULL,
 
   nombre_subcategoria VARCHAR(100) NOT NULL,
-  slug_subcategoria VARCHAR(100) NOT NULL COMMENT 'Slug único por subcategoría',
+  slug_subcategoria VARCHAR(100) COMMENT 'Slug único por subcategoría',
+  slug_subcategoria VARCHAR(100) COMMENT 'Slug único por subcategoría',
   descripcion TEXT,
   icono_url VARCHAR(255),
 
@@ -449,9 +611,11 @@ SELECT * FROM marcas LIMIT 5;
 SELECT * FROM categorias LIMIT 5;
 SELECT * FROM subcategorias LIMIT 5;
 
--- =====================================================================
--- 📦 Blog
--- =====================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 📦 BLOG
+-- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS entradas_blog (
   entrada_id INT AUTO_INCREMENT PRIMARY KEY,
   titulo VARCHAR(150) NOT NULL,
@@ -516,14 +680,17 @@ CREATE TABLE IF NOT EXISTS valoraciones (
   INDEX idx_aprobado (aprobado)
 );
 
--- =====================================================================
--- 📦 PRODUCTOS (catálogo principal, con soporte para borrado lógico)
--- =====================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 📦 PRODUCTOS (CATÁLOGO PRINCIPAL, CON SOPORTE PARA BORRADO LÓGICO)
+-- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS productos (
   producto_id INT AUTO_INCREMENT PRIMARY KEY,
 
   nombre VARCHAR(150) NOT NULL,
-  slug_producto VARCHAR(150) NOT NULL UNIQUE,
+  slug_producto VARCHAR(150) UNIQUE,
+  slug_producto VARCHAR(150) UNIQUE,
   descripcion TEXT NOT NULL,
   especificaciones TEXT,
   sku VARCHAR(50) UNIQUE,
@@ -676,9 +843,11 @@ SHOW TABLES LIKE 'inventario_productos';
 
 SELECT COUNT(*) AS total_productos FROM productos;
 
--- =====================================================================
--- 📢 MÓDULO: tipos_publicacion
--- ---------------------------------------------------------------------
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 📢 MÓDULO: TIPOS_PUBLICACION
+-- ════════════════════════════════════════════════════════════════════
 -- Modalidades de publicación para productos o servicios en TianguiStore.
 -- =====================================================================
 
@@ -751,9 +920,11 @@ ON DUPLICATE KEY UPDATE
   precio_publicacion = VALUES(precio_publicacion);
 
 SELECT * FROM tipos_publicacion ORDER BY prioridad DESC LIMIT 5;
--- =====================================================================
--- 🎖️ Tabla: niveles_fidelidad
--- ---------------------------------------------------------------------
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🎖️ TABLA: NIVELES_FIDELIDAD
+-- ════════════════════════════════════════════════════════════════════
 -- Define niveles de fidelización con beneficios opcionales.
 -- =====================================================================
 CREATE TABLE IF NOT EXISTS niveles_fidelidad (
@@ -766,10 +937,114 @@ CREATE TABLE IF NOT EXISTS niveles_fidelidad (
   creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Adaptación de la tabla usuarios para incluir niveles de fidelidad
+INSERT INTO niveles_fidelidad (nivel_id, nombre_nivel, descripcion, puntos_necesarios, beneficios)
+VALUES 
+-- Niveles para clientes normales y fidelización
+(1, 'Básico', 'Nivel inicial sin beneficios especiales.', 0, JSON_OBJECT()),
 
--- =====================================================================
--- 🪙 Tabla: puntos_usuario
--- ---------------------------------------------------------------------
+(2, 'Explorador', 'Recién registrado, recibe recomendaciones personalizadas.', 20, 
+ JSON_OBJECT('recomendaciones_ai', true)),
+
+(3, 'Bronce', 'Acceso a promociones básicas y prioridad media en soporte.', 100, 
+ JSON_OBJECT('descuento', '5%', 'prioridad_soporte', 'media')),
+
+(4, 'Mercante', 'Bonificaciones por compartir el sitio.', 180, 
+ JSON_OBJECT('bono_referidos', true, 'descuento', '7%')),
+
+(5, 'Plata', 'Envíos gratuitos y mayor descuento en productos seleccionados.', 250, 
+ JSON_OBJECT('descuento', '10%', 'envio_gratis', true)),
+
+(6, 'Aliado', 'Ofertas relámpago y acceso anticipado.', 350, 
+ JSON_OBJECT('descuento', '12%', 'early_access', true)),
+
+(7, 'Oro', 'Descuentos premium, soporte prioritario y regalos mensuales.', 500, 
+ JSON_OBJECT('descuento', '15%', 'envio_gratis', true, 'regalo_mensual', true)),
+
+(8, 'Embajador', 'Acceso exclusivo a sorteos y eventos.', 750, 
+ JSON_OBJECT('descuento', '15%', 'sorteos_exclusivos', true, 'regalo_mensual', true)),
+
+(9, 'Platino', 'Soporte VIP, regalos y descuentos máximos.', 1000, 
+ JSON_OBJECT('descuento', '20%', 'envio_gratis', true, 'soporte_vip', true, 'regalo_mensual', true)),
+
+(10, 'Diamante', 'Nivel élite reservado para miembros de alto impacto.', 1500, 
+ JSON_OBJECT('descuento', '25%', 'soporte_vip', true, 'eventos_privados', true)),
+
+-- Niveles internos de gestión y desarrollo
+(11, 'Staff', 'Acceso interno a operaciones y herramientas de soporte.', 0, 
+ JSON_OBJECT('acceso_interno', true, 'descuento_empleado', '100%')),
+
+(12, 'Soporte Técnico', 'Rol operativo con funciones técnicas de ayuda.', 0, 
+ JSON_OBJECT('panel_soporte', true, 'prioridad_tickets', 'alta')),
+
+(13, 'Moderador', 'Supervisa actividad y comunidad.', 0, 
+ JSON_OBJECT('acceso_moderacion', true)),
+
+(14, 'Desarrollador', 'Acceso a herramientas de desarrollo y pruebas.', 0, 
+ JSON_OBJECT('acceso_api', true, 'logs_tecnicos', true)),
+
+(15, 'Administrador', 'Control total del sistema y funciones avanzadas.', 0, 
+ JSON_OBJECT('acceso_sistema', true, 'privilegios_totales', true));
+-- Adaptación de la tabla usuarios para incluir niveles de fidelidad
+INSERT INTO niveles_fidelidad (nivel_id, nombre_nivel, descripcion, puntos_necesarios, beneficios)
+VALUES 
+-- Niveles para clientes normales y fidelización
+(1, 'Básico', 'Nivel inicial sin beneficios especiales.', 0, JSON_OBJECT()),
+
+(2, 'Explorador', 'Recién registrado, recibe recomendaciones personalizadas.', 20, 
+ JSON_OBJECT('recomendaciones_ai', true)),
+
+(3, 'Bronce', 'Acceso a promociones básicas y prioridad media en soporte.', 100, 
+ JSON_OBJECT('descuento', '5%', 'prioridad_soporte', 'media')),
+
+(4, 'Mercante', 'Bonificaciones por compartir el sitio.', 180, 
+ JSON_OBJECT('bono_referidos', true, 'descuento', '7%')),
+
+(5, 'Plata', 'Envíos gratuitos y mayor descuento en productos seleccionados.', 250, 
+ JSON_OBJECT('descuento', '10%', 'envio_gratis', true)),
+
+(6, 'Aliado', 'Ofertas relámpago y acceso anticipado.', 350, 
+ JSON_OBJECT('descuento', '12%', 'early_access', true)),
+
+(7, 'Oro', 'Descuentos premium, soporte prioritario y regalos mensuales.', 500, 
+ JSON_OBJECT('descuento', '15%', 'envio_gratis', true, 'regalo_mensual', true)),
+
+(8, 'Embajador', 'Acceso exclusivo a sorteos y eventos.', 750, 
+ JSON_OBJECT('descuento', '15%', 'sorteos_exclusivos', true, 'regalo_mensual', true)),
+
+(9, 'Platino', 'Soporte VIP, regalos y descuentos máximos.', 1000, 
+ JSON_OBJECT('descuento', '20%', 'envio_gratis', true, 'soporte_vip', true, 'regalo_mensual', true)),
+
+(10, 'Diamante', 'Nivel élite reservado para miembros de alto impacto.', 1500, 
+ JSON_OBJECT('descuento', '25%', 'soporte_vip', true, 'eventos_privados', true)),
+
+-- Niveles internos de gestión y desarrollo
+(11, 'Staff', 'Acceso interno a operaciones y herramientas de soporte.', 0, 
+ JSON_OBJECT('acceso_interno', true, 'descuento_empleado', '100%')),
+
+(12, 'Soporte Técnico', 'Rol operativo con funciones técnicas de ayuda.', 0, 
+ JSON_OBJECT('panel_soporte', true, 'prioridad_tickets', 'alta')),
+
+(13, 'Moderador', 'Supervisa actividad y comunidad.', 0, 
+ JSON_OBJECT('acceso_moderacion', true)),
+
+(14, 'Desarrollador', 'Acceso a herramientas de desarrollo y pruebas.', 0, 
+ JSON_OBJECT('acceso_api', true, 'logs_tecnicos', true)),
+
+(15, 'Administrador', 'Control total del sistema y funciones avanzadas.', 0, 
+ JSON_OBJECT('acceso_sistema', true, 'privilegios_totales', true));
+
+ALTER TABLE usuarios
+ADD COLUMN nivel_id INT DEFAULT 1 AFTER rol_id,
+ADD CONSTRAINT fk_usuario_nivel
+  FOREIGN KEY (nivel_id) REFERENCES niveles_fidelidad(nivel_id)
+  ON UPDATE CASCADE
+  ON DELETE SET NULL;
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🪙 TABLA: PUNTOS_USUARIO
+-- ════════════════════════════════════════════════════════════════════
 -- Registro de todos los eventos que generan puntos por usuario.
 -- =====================================================================
 CREATE TABLE IF NOT EXISTS puntos_usuario (
@@ -795,9 +1070,11 @@ CREATE TABLE IF NOT EXISTS puntos_usuario (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- =====================================================================
--- 🎁 Tabla: canjes_puntos
--- ---------------------------------------------------------------------
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🎁 TABLA: CANJES_PUNTOS
+-- ════════════════════════════════════════════════════════════════════
 -- Registro de redenciones por cupones o productos.
 -- =====================================================================
 CREATE TABLE IF NOT EXISTS canjes_puntos (
@@ -814,9 +1091,11 @@ CREATE TABLE IF NOT EXISTS canjes_puntos (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- =====================================================================
--- 🧾 Tabla: historial_niveles
--- ---------------------------------------------------------------------
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🧾 TABLA: HISTORIAL_NIVELES
+-- ════════════════════════════════════════════════════════════════════
 -- Trazabilidad de cambios de nivel por usuario.
 -- =====================================================================
 CREATE TABLE IF NOT EXISTS historial_niveles (
@@ -855,9 +1134,11 @@ GROUP BY usuario_id
 ORDER BY puntos_totales DESC
 LIMIT 10;
 
--- =====================================================================
--- 🏆 Tabla: logros
--- =====================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🏆 TABLA: LOGROS
+-- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS logros (
   logro_id INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(100) NOT NULL,
@@ -875,9 +1156,11 @@ CREATE TABLE IF NOT EXISTS logros (
 
 
 
--- =====================================================================
--- 🏅 Tabla: logros_usuario
--- =====================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🏅 TABLA: LOGROS_USUARIO
+-- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS logros_usuario (
   id INT AUTO_INCREMENT PRIMARY KEY,
   usuario_id INT NOT NULL,
@@ -887,9 +1170,11 @@ CREATE TABLE IF NOT EXISTS logros_usuario (
   FOREIGN KEY (logro_id) REFERENCES logros(logro_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- =====================================================================
--- 🎯 Tabla: misiones
--- =====================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🎯 TABLA: MISIONES
+-- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS misiones (
   mision_id INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(100) NOT NULL,
@@ -911,9 +1196,11 @@ CREATE TABLE IF NOT EXISTS misiones (
 
 
 
--- =====================================================================
--- 🧩 Tabla: progreso_mision
--- =====================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🧩 TABLA: PROGRESO_MISION
+-- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS progreso_mision (
   progreso_id INT AUTO_INCREMENT PRIMARY KEY,
   usuario_id INT NOT NULL,
@@ -927,9 +1214,11 @@ CREATE TABLE IF NOT EXISTS progreso_mision (
 
 
 
--- =====================================================================
--- 🧮 Tabla: ranking_usuarios
--- =====================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🧮 TABLA: RANKING_USUARIOS
+-- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS ranking_usuarios (
   usuario_id INT PRIMARY KEY,
   puntos_totales INT DEFAULT 0,
@@ -943,9 +1232,11 @@ CREATE TABLE IF NOT EXISTS ranking_usuarios (
   FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- =====================================================================
--- 🧑‍💼 Tabla: ranking_promotores
--- =====================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🧑‍💼 TABLA: RANKING_PROMOTORES
+-- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS ranking_promotores (
   usuario_id INT PRIMARY KEY,
   tipo ENUM('vendedor', 'promotor') DEFAULT 'vendedor',
@@ -958,9 +1249,10 @@ CREATE TABLE IF NOT EXISTS ranking_promotores (
   FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- =====================================================================
--- 🎁 Tabla: promociones
--- =====================================================================
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🎁 TABLA: PROMOCIONES (Versión completa y validada)
+-- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS promociones (
   promocion_id INT AUTO_INCREMENT PRIMARY KEY,
 
@@ -970,34 +1262,68 @@ CREATE TABLE IF NOT EXISTS promociones (
 
   tipo_promocion ENUM('porcentaje', 'cantidad_fija', 'envio_gratis', 'regalo', 'especial') NOT NULL DEFAULT 'porcentaje',
   valor DECIMAL(10,2) DEFAULT 0.00 COMMENT 'Valor del descuento: porcentaje o cantidad fija',
+  tipo_valor ENUM('porcentaje', 'fijo') DEFAULT 'porcentaje' COMMENT 'Tipo de valor aplicado (solo para compatibilidad lógica)',
 
   aplica_a ENUM('producto', 'categoria', 'marca', 'carrito', 'usuario', 'todos') DEFAULT 'carrito',
   restriccion_json JSON COMMENT 'Reglas condicionales como mínimo de compra, categorías, clientes nuevos, etc.',
 
-  fecha_inicio DATETIME DEFAULT CURRENT_TIMESTAMP,
-  fecha_fin DATETIME DEFAULT NULL,
+  cliente_segmento VARCHAR(100) DEFAULT NULL COMMENT 'Segmento de cliente (ej. nuevos, leales, premium)',
+  prioridad INT DEFAULT 1 COMMENT 'Prioridad de aplicación en conflictos múltiples',
 
+  exclusiva BOOLEAN DEFAULT FALSE COMMENT 'Si esta promoción es exclusiva y no acumulable',
   activa BOOLEAN DEFAULT TRUE,
   destacada BOOLEAN DEFAULT FALSE,
+
+  fecha_inicio DATETIME DEFAULT CURRENT_TIMESTAMP,
+  fecha_fin DATETIME DEFAULT NULL,
 
   borrado_logico BOOLEAN DEFAULT FALSE,
   fecha_borrado TIMESTAMP NULL DEFAULT NULL,
 
+  visible BOOLEAN DEFAULT TRUE COMMENT 'Visibilidad de la promoción en el frontend',
+
   creada_por INT DEFAULT NULL,
   fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
+  producto_id INT DEFAULT NULL,
+  categoria_id INT DEFAULT NULL,
+  marca_id INT DEFAULT NULL,
+
   FOREIGN KEY (creada_por) REFERENCES usuarios(usuario_id) ON DELETE SET NULL,
+  FOREIGN KEY (producto_id) REFERENCES productos(producto_id) ON DELETE SET NULL,
+  FOREIGN KEY (categoria_id) REFERENCES categorias(categoria_id) ON DELETE SET NULL,
+  FOREIGN KEY (marca_id) REFERENCES marcas(marca_id) ON DELETE SET NULL,
 
   INDEX idx_codigo (nombre),
   INDEX idx_fecha (fecha_inicio, fecha_fin),
-  INDEX idx_estado (activa, borrado_logico)
+  INDEX idx_estado (activa, borrado_logico),
+  INDEX idx_segmento (cliente_segmento),
+  INDEX idx_aplicacion (aplica_a, producto_id, categoria_id, marca_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+/*
+-- 🛠️ Agregar columna 'prioridad' a promociones
+ALTER TABLE promociones
+  ADD COLUMN prioridad INT DEFAULT 1 COMMENT 'Prioridad de aplicación';
+
+-- 🛠️ Agregar columna 'calificacion' a detalle_pedido
+ALTER TABLE detalle_pedido
+  ADD COLUMN calificacion TINYINT UNSIGNED NULL
+  CHECK (calificacion BETWEEN 1 AND 5)
+  COMMENT 'Calificación del producto por el cliente (1 a 5, opcional)';
+
+-- 🛠️ Agregar columna 'estado' a pedidos
+ALTER TABLE pedidos
+  ADD COLUMN estado ENUM('pendiente', 'procesando', 'completado', 'entregado', 'cancelado') 
+  NOT NULL DEFAULT 'pendiente'
+  COMMENT 'Estado actual del pedido: seguimiento del flujo de compra';
+*/
 
 
--- =====================================================================
--- 🛒 Tabla: productos_promocionados
--- =====================================================================
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🛒 TABLA: PRODUCTOS_PROMOCIONADOS
+-- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS productos_promocionados (
   id INT AUTO_INCREMENT PRIMARY KEY,
   usuario_id INT NOT NULL,
@@ -1009,31 +1335,27 @@ CREATE TABLE IF NOT EXISTS productos_promocionados (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- =====================================================================
--- 🗃️ Tabla: historial_promociones
--- =====================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🗃️ TABLA: HISTORIAL_PROMOCIONES (CORREGIDA)
+-- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS historial_promociones (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  usuario_id INT NOT NULL,
-  producto_id INT NOT NULL,
-  cliente_id INT,
-  tipo_logro ENUM('compra_directa', 'registro_via_promocion', 'click', 'compra_asociada') NOT NULL,
-  fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  usuario_id INT NOT NULL COMMENT 'Usuario asociado a la acción promocional',
+  producto_id INT NOT NULL COMMENT 'Producto relacionado con la promoción',
+  tipo_logro ENUM('compra_directa', 'registro_via_promocion', 'click', 'compra_asociada') NOT NULL COMMENT 'Tipo de logro registrado',
+  fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Fecha de la actividad promocional',
+
   FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id),
-  FOREIGN KEY (producto_id) REFERENCES productos(producto_id),
-  FOREIGN KEY (cliente_id) REFERENCES usuarios(usuario_id)
+  FOREIGN KEY (producto_id) REFERENCES productos(producto_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-SHOW TABLES LIKE 'logros';
-SHOW TABLES LIKE 'misiones';
-SHOW TABLES LIKE 'ranking_usuarios';
 
-DESCRIBE logros;
-DESCRIBE progreso_mision;
-SELECT * FROM ranking_promotores ORDER BY total_productos_vendidos DESC LIMIT 10;
--- =====================================================================
--- 🔁 TRIGGERS RECOMENDADOS – GAMIFICACIÓN TIANGUISTORE
--- =====================================================================
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🔁 TRIGGERS RECOMENDADOS – GAMIFICACIÓN TIANGUISTORE
+-- ════════════════════════════════════════════════════════════════════
 DELIMITER //
 
 -- 1. Recalcular puntos totales al registrar nuevos puntos
@@ -1110,9 +1432,11 @@ END;
 
 DELIMITER ;
 
--- ================================================================
--- 👑 VISTA: TOP 10 USUARIOS POR PUNTAJE GENERAL
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 👑 VISTA: TOP 10 USUARIOS POR PUNTAJE GENERAL
+-- ════════════════════════════════════════════════════════════════════
 CREATE OR REPLACE VIEW vista_top_usuarios AS
 SELECT 
   u.usuario_id,
@@ -1129,9 +1453,11 @@ ORDER BY indice_gamificado DESC
 LIMIT 10;
 
 
--- ================================================================
--- 💼 VISTA: RANKING DE VENDEDORES
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 💼 VISTA: RANKING DE VENDEDORES
+-- ════════════════════════════════════════════════════════════════════
 CREATE OR REPLACE VIEW vista_top_vendedores AS
 SELECT 
   u.usuario_id,
@@ -1147,9 +1473,11 @@ WHERE rp.tipo = 'vendedor'
 ORDER BY rp.total_productos_vendidos DESC;
 
 
--- ================================================================
--- 🔥 VISTA: LOGROS MÁS COMUNES
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🔥 VISTA: LOGROS MÁS COMUNES
+-- ════════════════════════════════════════════════════════════════════
 CREATE OR REPLACE VIEW vista_logros_comunes AS
 SELECT 
   l.logro_id,
@@ -1162,9 +1490,11 @@ GROUP BY l.logro_id, l.nombre, l.tipo_logro
 ORDER BY veces_obtenido DESC;
 
 
--- ================================================================
--- 🧩 VISTA: PROGRESO DE MISIONES ACTIVAS
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🧩 VISTA: PROGRESO DE MISIONES ACTIVAS
+-- ════════════════════════════════════════════════════════════════════
 CREATE OR REPLACE VIEW vista_progreso_misiones AS
 SELECT 
   pm.usuario_id,
@@ -1182,9 +1512,11 @@ WHERE m.estado = 'activa'
 ORDER BY pm.fecha_actualizacion DESC;
 
 
--- ================================================================
--- ⏳ VISTA: PUNTOS EXPIRADOS Y NO REDIMIDOS
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 ⏳ VISTA: PUNTOS EXPIRADOS Y NO REDIMIDOS
+-- ════════════════════════════════════════════════════════════════════
 CREATE OR REPLACE VIEW vista_puntos_expirados AS
 SELECT 
   pu.puntos_id,
@@ -1203,9 +1535,11 @@ WHERE pu.redimido = FALSE
 ORDER BY pu.fecha_expiracion ASC;
 
 
--- ================================================================
--- 🎁 VISTA: HISTORIAL DE CANJES DE PUNTOS
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🎁 VISTA: HISTORIAL DE CANJES DE PUNTOS
+-- ════════════════════════════════════════════════════════════════════
 CREATE OR REPLACE VIEW vista_historial_canjes AS
 SELECT 
   cp.canje_id,
@@ -1221,9 +1555,11 @@ JOIN usuarios u ON cp.usuario_id = u.usuario_id
 ORDER BY cp.fecha DESC;
 
 
--- ================================================================
--- 🧠 VISTA: LOGROS PENDIENTES (usuario sin logro asignado)
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🧠 VISTA: LOGROS PENDIENTES (USUARIO SIN LOGRO ASIGNADO)
+-- ════════════════════════════════════════════════════════════════════
 CREATE OR REPLACE VIEW vista_logros_pendientes AS
 SELECT 
   u.usuario_id,
@@ -1245,9 +1581,11 @@ SELECT * FROM vista_puntos_expirados;
 SELECT * FROM vista_historial_canjes;
 SELECT * FROM vista_logros_pendientes;
 
--- ================================================================
--- 📄 Catálogo de reportes personalizados
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 📄 CATÁLOGO DE REPORTES PERSONALIZADOS
+-- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS reportes (
   reporte_id INT AUTO_INCREMENT PRIMARY KEY,
   nombre_reporte VARCHAR(100) NOT NULL,
@@ -1271,9 +1609,11 @@ CREATE TABLE IF NOT EXISTS reportes (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- ================================================================
--- 🧾 Historial de ejecuciones de reportes
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🧾 HISTORIAL DE EJECUCIONES DE REPORTES
+-- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS ejecucion_reportes (
   ejecucion_id INT AUTO_INCREMENT PRIMARY KEY,
   reporte_id INT NOT NULL,
@@ -1287,9 +1627,11 @@ CREATE TABLE IF NOT EXISTS ejecucion_reportes (
   FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- =======================================
--- INSERT MASIVO DE REPORTES PREDEFINIDOS
--- =======================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 INSERT MASIVO DE REPORTES PREDEFINIDOS
+-- ════════════════════════════════════════════════════════════════════
 
 INSERT INTO reportes (
   nombre_reporte, descripcion, tipo, query_sql, programado, frecuencia, visibilidad, creado_por
@@ -1316,7 +1658,7 @@ VALUES
 
 -- ========== CLIENTE ==========
 ('Mis pedidos recientes', 'Pedidos del mes.', 'cliente',
- 'SELECT pedido_id, total, fecha_pedido FROM pedidos WHERE cliente_id = @user_id AND MONTH(fecha_pedido) = MONTH(CURDATE())', FALSE, 'mensual', 'cliente', NULL),
+ 'SELECT pedido_id, total, fecha_pedido FROM pedidos WHERE usuario_id = @user_id AND MONTH(fecha_pedido) = MONTH(CURDATE())', FALSE, 'mensual', 'cliente', NULL),
 
 ('Historial de puntos', 'Mis puntos acumulados.', 'cliente',
  'SELECT tipo_evento, puntos, fecha FROM puntos_usuario WHERE usuario_id = @user_id ORDER BY fecha DESC', FALSE, 'mensual', 'cliente', NULL),
@@ -1328,10 +1670,10 @@ VALUES
  'SELECT c.codigo, c.descripcion FROM cupones c JOIN cupones_usuarios cu ON c.cupon_id = cu.cupon_id WHERE cu.usuario_id = @user_id AND c.activo = TRUE', FALSE, 'mensual', 'cliente', NULL),
 
 ('Productos favoritos', 'Productos más comprados.', 'cliente',
- 'SELECT producto_id, COUNT(*) AS veces FROM detalle_pedido dp JOIN pedidos p ON dp.pedido_id = p.pedido_id WHERE p.cliente_id = @user_id GROUP BY producto_id ORDER BY veces DESC LIMIT 5', FALSE, 'mensual', 'cliente', NULL),
+ 'SELECT producto_id, COUNT(*) AS veces FROM detalle_pedido dp JOIN pedidos p ON dp.pedido_id = p.pedido_id WHERE p.usuario_id = @user_id GROUP BY producto_id ORDER BY veces DESC LIMIT 5', FALSE, 'mensual', 'cliente', NULL),
 
 ('Devoluciones realizadas', 'Pedidos devueltos.', 'cliente',
- 'SELECT pedido_id, total FROM pedidos WHERE cliente_id = @user_id AND estado_id = 5', FALSE, 'mensual', 'cliente', NULL),
+ 'SELECT pedido_id, total FROM pedidos WHERE usuario_id = @user_id AND estado_id = 5', FALSE, 'mensual', 'cliente', NULL),
 
 -- ========== VENDEDOR ==========
 ('Mis productos más vendidos', 'Ventas por producto.', 'vendedor',
@@ -1407,9 +1749,11 @@ ORDER BY e.fecha_ejecucion DESC
 LIMIT 20;
 DELIMITER //
 
--- ================================================================
--- 🚫 Evitar asignación de puntos a usuarios inactivos
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🚫 EVITAR ASIGNACIÓN DE PUNTOS A USUARIOS INACTIVOS
+-- ════════════════════════════════════════════════════════════════════
 CREATE TRIGGER trg_validar_usuario_activo_puntos
 BEFORE INSERT ON puntos_usuario
 FOR EACH ROW
@@ -1428,9 +1772,11 @@ END;
 //
 
 
--- ================================================================
--- 🚫 Proteger contra eliminación de usuarios con rol "admin"
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🚫 PROTEGER CONTRA ELIMINACIÓN DE USUARIOS CON ROL "ADMIN"
+-- ════════════════════════════════════════════════════════════════════
 CREATE TRIGGER trg_proteger_admin_delete
 BEFORE DELETE ON usuarios
 FOR EACH ROW
@@ -1449,9 +1795,11 @@ END;
 //
 
 
--- ================================================================
--- 🚫 Proteger contra eliminación directa de roles en uso
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🚫 PROTEGER CONTRA ELIMINACIÓN DIRECTA DE ROLES EN USO
+-- ════════════════════════════════════════════════════════════════════
 CREATE TRIGGER trg_prevenir_eliminacion_rol_en_uso
 BEFORE DELETE ON roles
 FOR EACH ROW
@@ -1470,9 +1818,11 @@ END;
 //
 
 
--- ================================================================
--- 🔒 Validar que el usuario exista antes de asignar logros
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🔒 VALIDAR QUE EL USUARIO EXISTA ANTES DE ASIGNAR LOGROS
+-- ════════════════════════════════════════════════════════════════════
 CREATE TRIGGER trg_validar_logro_usuario_existente
 BEFORE INSERT ON logros_usuario
 FOR EACH ROW
@@ -1485,9 +1835,11 @@ END;
 //
 
 
--- ================================================================
--- ⛔ Validar que usuarios bloqueados no participen en misiones
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 ⛔ VALIDAR QUE USUARIOS BLOQUEADOS NO PARTICIPEN EN MISIONES
+-- ════════════════════════════════════════════════════════════════════
 CREATE TRIGGER trg_prevenir_progreso_usuario_inactivo
 BEFORE INSERT ON progreso_mision
 FOR EACH ROW
@@ -1506,13 +1858,16 @@ END;
 //
 
 
--- ================================================================
--- 🔁 BORRADO LÓGICO PARA USUARIOS Y PRODUCTOS
--- ================================================================
--- ================================================================
--- 🔄 MANTENIMIENTO AUTOMÁTICO: EXPIRAR PUNTOS
--- ================================================================
 
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🔁 BORRADO LÓGICO PARA USUARIOS Y PRODUCTOS
+-- ════════════════════════════════════════════════════════════════════
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🔄 MANTENIMIENTO AUTOMÁTICO: EXPIRAR PUNTOS
+-- ════════════════════════════════════════════════════════════════════
 
 -- Evita eliminación física de usuarios
 CREATE TRIGGER trg_proteger_borrado_usuarios
@@ -1649,9 +2004,11 @@ FROM auditoria_borrado ab
 LEFT JOIN usuarios u ON ab.usuario_responsable_id = u.usuario_id
 ORDER BY ab.fecha DESC;
 
--- ================================================================
--- 🧾 INTEGRIDAD CON FIRMA HASH (verificación de datos)
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🧾 INTEGRIDAD CON FIRMA HASH (VERIFICACIÓN DE DATOS)
+-- ════════════════════════════════════════════════════════════════════
 
 DELIMITER //
 
@@ -1660,7 +2017,7 @@ CREATE TRIGGER trg_firma_hash_pedido_insert
 BEFORE INSERT ON pedidos
 FOR EACH ROW
 BEGIN
-  SET NEW.firma_hash = SHA2(CONCAT_WS('|', NEW.cliente_id, NEW.total, NEW.fecha_pedido), 256);
+  SET NEW.firma_hash = SHA2(CONCAT_WS('|', NEW.usuario_id, NEW.total, NEW.fecha_pedido), 256);
   SET NEW.fecha_firmado = CURRENT_TIMESTAMP;
 END;
 //
@@ -1670,8 +2027,8 @@ CREATE TRIGGER trg_firma_hash_pedido_update
 BEFORE UPDATE ON pedidos
 FOR EACH ROW
 BEGIN
-  IF NEW.total <> OLD.total OR NEW.cliente_id <> OLD.cliente_id THEN
-    SET NEW.firma_hash = SHA2(CONCAT_WS('|', NEW.cliente_id, NEW.total, NEW.fecha_pedido), 256);
+  IF NEW.total <> OLD.total OR NEW.usuario_id <> OLD.usuario_id THEN
+    SET NEW.firma_hash = SHA2(CONCAT_WS('|', NEW.usuario_id, NEW.total, NEW.fecha_pedido), 256);
     SET NEW.fecha_firmado = CURRENT_TIMESTAMP;
   END IF;
 END;
@@ -1687,7 +2044,7 @@ BEGIN
 
   SELECT firma_hash INTO hash_actual FROM pedidos WHERE pedido_id = pid;
 
-  SELECT SHA2(CONCAT_WS('|', cliente_id, total, fecha_pedido), 256)
+  SELECT SHA2(CONCAT_WS('|', usuario_id, total, fecha_pedido), 256)
   INTO hash_recalculado
   FROM pedidos
   WHERE pedido_id = pid;
@@ -1704,9 +2061,11 @@ DELIMITER ;
 
 
 
--- ================================================================
--- 🔄 MANEJO TRANSACCIONAL SUGERIDO (a nivel aplicación)
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🔄 MANEJO TRANSACCIONAL SUGERIDO (A NIVEL APLICACIÓN)
+-- ════════════════════════════════════════════════════════════════════
 -- 💡 NOTA: Las siguientes transacciones se implementan desde el backend.
 -- Se recomienda envolver operaciones como:
 
@@ -1719,16 +2078,20 @@ DELIMITER ;
 -- También puede implementarse en procedimientos almacenados si se desea.
 
 
--- ================================================================
--- 🛠️ MANTENIMIENTO AUTOMÁTICO DE LA BASE DE DATOS (EFICIENTE)
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🛠️ MANTENIMIENTO AUTOMÁTICO DE LA BASE DE DATOS (EFICIENTE)
+-- ════════════════════════════════════════════════════════════════════
 
 -- Habilitar EVENT SCHEDULER si no está activo
 SET GLOBAL event_scheduler = ON;
 
--- ===============================
--- 🔄 Limpieza de puntos expirados
--- ===============================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🔄 LIMPIEZA DE PUNTOS EXPIRADOS
+-- ════════════════════════════════════════════════════════════════════
 DROP EVENT IF EXISTS evt_expirar_puntos;
 
 CREATE EVENT evt_expirar_puntos
@@ -1740,9 +2103,11 @@ DO
     AND fecha_expiracion IS NOT NULL
     AND fecha_expiracion < CURDATE();
 
--- ===============================
--- 🔄 EVENTO: Restaurar visibilidad a productos programados
--- ===============================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🔄 EVENTO: RESTAURAR VISIBILIDAD A PRODUCTOS PROGRAMADOS
+-- ════════════════════════════════════════════════════════════════════
 DROP EVENT IF EXISTS evt_publicar_programados;
 
 CREATE EVENT evt_publicar_programados
@@ -1754,9 +2119,11 @@ DO
     AND estado_visible = 'pendiente'
     AND fecha_publicacion <= NOW();
 
--- ===============================
--- 🔄 EVENTO: Limpieza de pedidos borradores vencidos
--- ===============================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🔄 EVENTO: LIMPIEZA DE PEDIDOS BORRADORES VENCIDOS
+-- ════════════════════════════════════════════════════════════════════
 DROP EVENT IF EXISTS evt_limpiar_pedidos_borrador;
 
 CREATE EVENT evt_limpiar_pedidos_borrador
@@ -1768,9 +2135,11 @@ DO
 
 
 
--- ===============================
--- 🔄 Limpieza lógica de usuarios inactivos por más de 1 año
--- ===============================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🔄 LIMPIEZA LÓGICA DE USUARIOS INACTIVOS POR MÁS DE 1 AÑO
+-- ════════════════════════════════════════════════════════════════════
 DROP EVENT IF EXISTS evt_archivar_usuarios_inactivos;
 
 CREATE EVENT evt_archivar_usuarios_inactivos
@@ -1806,9 +2175,11 @@ WHERE activo = TRUE
   );
 
 
--- ===============================
--- 🔄 Limpieza lógica de productos sin stock e inactivos
--- ===============================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🔄 LIMPIEZA LÓGICA DE PRODUCTOS SIN STOCK E INACTIVOS
+-- ════════════════════════════════════════════════════════════════════
 DROP EVENT IF EXISTS evt_archivar_productos_inactivos;
 
 CREATE EVENT evt_archivar_productos_inactivos
@@ -1824,9 +2195,11 @@ DO
     AND updated_at < (CURRENT_DATE - INTERVAL 60 DAY);
 
 
--- ===============================
--- 🧪 Vista de revisión previa al evento
--- ===============================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🧪 VISTA DE REVISIÓN PREVIA AL EVENTO
+-- ════════════════════════════════════════════════════════════════════
 CREATE OR REPLACE VIEW vista_productos_inactivos_limpieza AS
 SELECT producto_id, nombre, updated_at, stock, publicado, status
 FROM productos
@@ -1835,9 +2208,11 @@ WHERE stock = 0
   AND borrado_logico = FALSE
   AND updated_at < (CURRENT_DATE - INTERVAL 60 DAY);
 
--- ===============================
--- 🧾 integrar auditoría
--- ===============================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🧾 INTEGRAR AUDITORÍA
+-- ════════════════════════════════════════════════════════════════════
 INSERT INTO auditoria_borrado (entidad, entidad_id, usuario_responsable_id, accion, motivo)
 SELECT 'producto', p.producto_id, NULL, 'borrado_logico', 'Limpieza automática por inactividad'
 FROM productos p
@@ -1859,9 +2234,11 @@ DO
     AND activa = TRUE;
 
 
--- ===============================
--- 🧾 Vista recomendada para revisión previa
--- ===============================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🧾 VISTA RECOMENDADA PARA REVISIÓN PREVIA
+-- ════════════════════════════════════════════════════════════════════
 CREATE OR REPLACE VIEW vista_promociones_vencidas AS
 SELECT promocion_id, nombre, fecha_fin, activa
 FROM promociones
@@ -1880,9 +2257,11 @@ WHERE fecha_fin IS NOT NULL
 
 
 
--- ===============================
--- 🔄 Actualización automática de rankings
--- ===============================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🔄 ACTUALIZACIÓN AUTOMÁTICA DE RANKINGS
+-- ════════════════════════════════════════════════════════════════════
 DROP EVENT IF EXISTS evt_actualizar_rankings;
 
 CREATE EVENT evt_actualizar_rankings
@@ -1906,11 +2285,33 @@ DO
       ru.fecha_actualizacion = CURRENT_TIMESTAMP;
 
 
--- ================================================================
--- 🧮 PROCEDIMIENTOS ALMACENADOS (STORED PROCEDURES)
--- ================================================================
--- 🎯 Procedimiento almacenado: Crear pedido completo con validación
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🛒 PROCEDIMIENTO ALMACENADO: CREAR PEDIDO COMPLETO
+-- 📦 🛒 PROCEDIMIENTO ALMACENADO: CREAR PEDIDO COMPLETO
+-- ════════════════════════════════════════════════════════════════════
+-- Este procedimiento almacena un pedido completo, incluyendo la validación de usuario,
+-- la verificación de stock y la inserción de detalles de pedido.
+-- Se recomienda usar transacciones para asegurar la integridad de los datos.
+-- El procedimiento recibe un JSON con los productos y sus cantidades.
+-- Se valida la existencia del usuario, el total del pedido y la disponibilidad de stock.
+-- Si todo es correcto, se inserta el pedido y los detalles en la base de datos.
+-- En caso de error, se registra en la tabla de auditoría y se lanza una excepción.
+-- Este procedimiento almacena un pedido completo, incluyendo la validación de usuario,
+-- la verificación de stock y la inserción de detalles de pedido.
+-- Se recomienda usar transacciones para asegurar la integridad de los datos.
+-- El procedimiento recibe un JSON con los productos y sus cantidades.
+-- Se valida la existencia del usuario, el total del pedido y la disponibilidad de stock.
+-- Si todo es correcto, se inserta el pedido y los detalles en la base de datos.
+-- En caso de error, se registra en la tabla de auditoría y se lanza una excepción.
+
 DROP PROCEDURE IF EXISTS sp_crear_pedido_completo;
+
+
+DELIMITER //
+
+CREATE PROCEDURE sp_crear_pedido_completo(
+
 DELIMITER //
 
 CREATE PROCEDURE sp_crear_pedido_completo(
@@ -1918,74 +2319,174 @@ CREATE PROCEDURE sp_crear_pedido_completo(
   IN p_total DECIMAL(10,2),
   IN p_metodo_pago ENUM('efectivo','tarjeta','transferencia','codi','paypal'),
   IN p_cupon VARCHAR(30),
-  IN p_direccion_envio TEXT,
-  IN p_notas TEXT
+  IN p_direccion_entrega TEXT,
+  IN p_metodo_pago ENUM('efectivo','tarjeta','transferencia','codi','paypal'),
+  IN p_cupon VARCHAR(30),
+  IN p_direccion_entrega TEXT,
+  IN p_notas TEXT,
+  IN p_productos_json JSON
 )
 BEGIN
-  -- Declaraciones (deben ir al inicio)
   DECLARE v_usuario_existe INT DEFAULT 0;
   DECLARE v_pedido_id INT;
+  DECLARE v_index INT DEFAULT 0;
+  DECLARE v_total_items INT;
+  DECLARE v_producto_id INT;
+  DECLARE v_cantidad INT;
+  DECLARE v_precio DECIMAL(10,2);
+  DECLARE v_stock INT;
 
-  -- Manejador de errores SQL
+  DECLARE msg_error_usuario TEXT DEFAULT NULL;
+  DECLARE msg_error_detalle TEXT DEFAULT NULL;
+  DECLARE msg_final TEXT;
+  DECLARE signal_msg VARCHAR(128);
+  DECLARE v_log_id INT;
+  DECLARE v_sqlstate VARCHAR(10);
+  DECLARE v_errno INT;
+  DECLARE v_errmsg TEXT;
+
   DECLARE EXIT HANDLER FOR SQLEXCEPTION
   BEGIN
+    GET DIAGNOSTICS CONDITION 1
+      v_sqlstate = RETURNED_SQLSTATE,
+      v_errno = MYSQL_ERRNO,
+      v_errmsg = MESSAGE_TEXT;
+    SET v_errmsg = LEFT(v_errmsg, 255);
     ROLLBACK;
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error al registrar el pedido. Transacción revertida.';
+    INSERT INTO auditoria_errores (
+      modulo, procedimiento, usuario_id, datos_entrada,
+      `sqlstate`, `mysql_errno`, `mensaje`
+      modulo, procedimiento, usuario_id, datos_entrada,
+      `sqlstate`, `mysql_errno`, `mensaje`
+    ) VALUES (
+      'pedidos',
+      'sp_crear_pedido_completo',
+      p_usuario_id,
+      JSON_OBJECT(
+        'total', p_total,
+        'metodo_pago', p_metodo_pago,
+        'cupon', p_cupon,
+        'direccion_entrega', p_direccion_entrega,
+        'direccion_entrega', p_direccion_entrega,
+        'notas', p_notas,
+        'productos', p_productos_json
+      ),
+      v_sqlstate,
+      v_errno,
+      v_errmsg
+    );
+    SET v_log_id = LAST_INSERT_ID();
+    SET msg_error_usuario = CONCAT('❌ No fue posible registrar tu pedido. Código de seguimiento: #ERR', LPAD(v_log_id, 6, '0'));
+    SET msg_error_detalle = CONCAT('[MySQL:', v_errno, '] ', v_errmsg, ' (log_id=', v_log_id, ')');
+    SET msg_error_detalle = CONCAT('[MySQL:', v_errno, '] ', v_errmsg, ' (log_id=', v_log_id, ')');
+    SET msg_final = CONCAT(msg_error_usuario, '|||', msg_error_detalle);
+    SET signal_msg = LEFT(msg_final, 128);
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = signal_msg;
   END;
 
-  -- Validación: usuario debe existir y estar activo
   SELECT COUNT(*) INTO v_usuario_existe
   FROM usuarios
   WHERE usuario_id = p_usuario_id AND activo = 1 AND borrado_logico = 0;
 
   IF v_usuario_existe = 0 THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Usuario no válido, inactivo o eliminado.';
+    SET msg_error_usuario = 'Tu cuenta no está activa o no es válida.';
+    SET msg_error_detalle = CONCAT('Usuario ID ', p_usuario_id, ' no encontrado o inactivo.');
+    SET msg_error_detalle = CONCAT('Usuario ID ', p_usuario_id, ' no encontrado o inactivo.');
+    SET msg_final = CONCAT(msg_error_usuario, '|||', msg_error_detalle);
+    SET signal_msg = LEFT(msg_final, 128);
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = signal_msg;
   END IF;
 
-  -- Validación: total debe ser positivo
-  IF p_total <= 0 THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El total del pedido debe ser mayor a cero.';
+  IF p_total IS NULL OR p_total <= 0 THEN
+    SET msg_error_usuario = 'El total del pedido debe ser mayor a cero.';
+    SET msg_error_detalle = 'Valor total inválido o nulo.';
+    SET msg_error_detalle = 'Valor total inválido o nulo.';
+    SET msg_final = CONCAT(msg_error_usuario, '|||', msg_error_detalle);
+    SET signal_msg = LEFT(msg_final, 128);
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = signal_msg;
   END IF;
 
-  -- Iniciar transacción
+  SET v_total_items = JSON_LENGTH(p_productos_json);
+  IF v_total_items IS NULL OR v_total_items = 0 THEN
+    SET msg_error_usuario = 'El pedido no contiene productos válidos.';
+    SET msg_error_usuario = 'El pedido no contiene productos válidos.';
+    SET msg_error_detalle = 'JSON vacío o malformado.';
+    SET msg_final = CONCAT(msg_error_usuario, '|||', msg_error_detalle);
+    SET signal_msg = LEFT(msg_final, 128);
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = signal_msg;
+  END IF;
+
   START TRANSACTION;
 
-  -- Insertar el pedido
   INSERT INTO pedidos (
-    usuario_id,
-    estado_id,
-    total,
-    metodo_pago,
-    cupon,
-    direccion_envio,
-    notas,
-    borrado_logico,
-    fecha_pedido
+    usuario_id, estado_id, total, metodo_pago,
+    cupon, direccion_entrega, notas, borrado_logico, fecha_pedido
+    cupon, direccion_entrega, notas, borrado_logico, fecha_pedido
   ) VALUES (
-    p_usuario_id,
-    1, -- Estado inicial "pendiente"
-    p_total,
-    p_metodo_pago,
-    p_cupon,
-    p_direccion_envio,
-    p_notas,
-    0,
-    NOW()
+    p_usuario_id, 1, p_total, p_metodo_pago,
+    p_cupon, p_direccion_entrega, p_notas, 0, NOW()
+    p_cupon, p_direccion_entrega, p_notas, 0, NOW()
   );
 
-  -- Obtener el ID del pedido creado
   SET v_pedido_id = LAST_INSERT_ID();
 
-  -- Confirmar la transacción
-  COMMIT;
+  WHILE v_index < v_total_items DO
+    SET v_producto_id = CAST(JSON_UNQUOTE(JSON_EXTRACT(p_productos_json, CONCAT('$[', v_index, '].producto_id'))) AS UNSIGNED);
+    SET v_cantidad = CAST(JSON_UNQUOTE(JSON_EXTRACT(p_productos_json, CONCAT('$[', v_index, '].cantidad'))) AS UNSIGNED);
+    SET v_precio = CAST(JSON_UNQUOTE(JSON_EXTRACT(p_productos_json, CONCAT('$[', v_index, '].precio_unitario'))) AS DECIMAL(10,2));
+    SET v_cantidad = CAST(JSON_UNQUOTE(JSON_EXTRACT(p_productos_json, CONCAT('$[', v_index, '].cantidad'))) AS UNSIGNED);
+    SET v_precio = CAST(JSON_UNQUOTE(JSON_EXTRACT(p_productos_json, CONCAT('$[', v_index, '].precio_unitario'))) AS DECIMAL(10,2));
 
-  -- Devolver el ID del nuevo pedido al frontend
+    SELECT stock INTO v_stock FROM productos WHERE producto_id = v_producto_id;
+
+    IF v_stock IS NULL THEN
+      SET msg_error_usuario = 'Un producto ya no está disponible.';
+      SET msg_error_detalle = CONCAT('Producto ID ', v_producto_id, ' no existe.');
+      SET msg_error_detalle = CONCAT('Producto ID ', v_producto_id, ' no existe.');
+      SET msg_final = CONCAT(msg_error_usuario, '|||', msg_error_detalle);
+      SET signal_msg = LEFT(msg_final, 128);
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = signal_msg;
+    END IF;
+
+    IF v_stock < v_cantidad THEN
+      SET msg_error_usuario = 'Stock insuficiente.';
+      SET msg_error_detalle = CONCAT('Producto ID ', v_producto_id, '. Requerido: ', v_cantidad, ', Disponible: ', v_stock);
+      SET msg_error_usuario = 'Stock insuficiente.';
+      SET msg_error_detalle = CONCAT('Producto ID ', v_producto_id, '. Requerido: ', v_cantidad, ', Disponible: ', v_stock);
+      SET msg_final = CONCAT(msg_error_usuario, '|||', msg_error_detalle);
+      SET signal_msg = LEFT(msg_final, 128);
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = signal_msg;
+    END IF;
+
+    INSERT INTO detalle_pedido (
+      pedido_id, producto_id, cantidad, precio_unitario,
+      descuento_aplicado, iva_porcentaje
+      pedido_id, producto_id, cantidad, precio_unitario,
+      descuento_aplicado, iva_porcentaje
+    ) VALUES (
+      v_pedido_id, v_producto_id, v_cantidad, v_precio,
+      0.00, -- descuento por producto
+      16.00 -- IVA aplicable
+      v_pedido_id, v_producto_id, v_cantidad, v_precio,
+      0.00, -- descuento por producto
+      16.00 -- IVA aplicable
+    );
+
+    UPDATE productos SET stock = stock - v_cantidad WHERE producto_id = v_producto_id;
+
+    SET v_index = v_index + 1;
+  END WHILE;
+
+  COMMIT;
   SELECT v_pedido_id AS pedido_id;
+END;
+//
 END;
 //
 DELIMITER ;
 
-
+  -- 🏆 SP: Crear pedido completo
+  -- 🏆 SP: Crear pedido completo
 
 
 -- 🧾 SP: Canjear puntos por cupon
@@ -2044,9 +2545,11 @@ END;
 //
 DELIMITER ;
 
--- ================================================================
--- 🏆 LOGROS AUTOMÁTICOS (TRIGGERS)
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🏆 LOGROS AUTOMÁTICOS (TRIGGERS)
+-- ════════════════════════════════════════════════════════════════════
 
 DELIMITER //
 
@@ -2058,11 +2561,11 @@ BEGIN
   DECLARE ya_lo_tiene INT;
   SELECT COUNT(*) INTO ya_lo_tiene
   FROM logros_usuario
-  WHERE usuario_id = NEW.cliente_id AND logro_id = 1;
+  WHERE usuario_id = NEW.usuario_id AND logro_id = 1;
 
   IF ya_lo_tiene = 0 THEN
     INSERT INTO logros_usuario (usuario_id, logro_id)
-    VALUES (NEW.cliente_id, 1);
+    VALUES (NEW.usuario_id, 1);
   END IF;
 END;
 //
@@ -2103,9 +2606,11 @@ END;
 
 DELIMITER ;
 
--- ================================================================
--- 🧩 MEJORAS EN MODERACIÓN DE COMENTARIOS Y TESTIMONIOS
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🧩 MEJORAS EN MODERACIÓN DE COMENTARIOS Y TESTIMONIOS
+-- ════════════════════════════════════════════════════════════════════
 
 
 
@@ -2123,7 +2628,8 @@ CREATE TABLE testimonios (
 
 ) ENGINE=InnoDB;
 
--- Trigger: certifica testimonio si hay pedido previo del producto
+
+-- 🔸 TRIGGER: `certifica testimonio si hay pedido previo del producto`
 DELIMITER //
 CREATE TRIGGER trg_certificar_testimonio
 BEFORE INSERT ON testimonios
@@ -2133,7 +2639,7 @@ BEGIN
   SELECT COUNT(*) INTO comprueba
   FROM detalle_pedido dp
   JOIN pedidos p ON dp.pedido_id = p.pedido_id
-  WHERE p.cliente_id = NEW.usuario_id AND dp.producto_id = NEW.producto_id;
+  WHERE p.usuario_id = NEW.usuario_id AND dp.producto_id = NEW.producto_id;
 
   IF comprueba > 0 THEN
     SET NEW.certificado = TRUE;
@@ -2142,9 +2648,11 @@ END;
 //
 DELIMITER ;
 
--- ================================================================
--- 🏆 AMPLIACIÓN DE LOGROS Y RECOMPENSAS POR REFERIDOS
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🏆 AMPLIACIÓN DE LOGROS Y RECOMPENSAS POR REFERIDOS
+-- ════════════════════════════════════════════════════════════════════
 
 INSERT INTO logros (nombre, descripcion, tipo_logro, criterio_json, puntos_recompensa, activo)
 VALUES
@@ -2196,9 +2704,11 @@ VALUES
  JSON_OBJECT('evento', 'mision_mensual', 'minimo', 10, 'consecutivo', true), 120, TRUE);
 
 
--- ================================================================
--- 🎁 DESCUENTOS AUTOMÁTICOS POR REFERIDOS ACTIVOS
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🎁 DESCUENTOS AUTOMÁTICOS POR REFERIDOS ACTIVOS
+-- ════════════════════════════════════════════════════════════════════
 
 -- Tabla para seguimiento de referidos
 CREATE TABLE referidos (
@@ -2221,7 +2731,7 @@ BEGIN
 
   SELECT referido_por INTO promotor_id
   FROM referidos
-  WHERE usuario_referido = NEW.cliente_id AND confirmado = TRUE;
+  WHERE usuario_referido = NEW.usuario_id AND confirmado = TRUE;
 
   IF promotor_id IS NOT NULL THEN
     -- Insertar cupon tipo "descuento por referido"
@@ -2336,9 +2846,11 @@ VALUES
  TRUE);
 
 
--- ================================================================
--- 👁️ VISTAS RECOMENDADAS Y NECESARIAS PARA GESTIÓN Y COMUNIDAD
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 👁️ VISTAS RECOMENDADAS Y NECESARIAS PARA GESTIÓN Y COMUNIDAD
+-- ════════════════════════════════════════════════════════════════════
 
 -- Progreso de logros por usuario
 CREATE OR REPLACE VIEW vista_avance_logros AS
@@ -2400,9 +2912,11 @@ FROM usuarios u
 LEFT JOIN puntos_usuario p ON u.usuario_id = p.usuario_id
 GROUP BY u.usuario_id;
 
--- ================================================================
--- 🧮 PROCEDIMIENTOS ALMACENADOS MEJORADOS
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🧮 PROCEDIMIENTOS ALMACENADOS MEJORADOS
+-- ════════════════════════════════════════════════════════════════════
 
 -- Recompensar usuario por subir de nivel de fidelidad
 DROP PROCEDURE IF EXISTS sp_recompensar_por_nivel;
@@ -2437,9 +2951,11 @@ END;
 //
 DELIMITER ;
 
--- ================================================================
--- 📊 VISTAS CLAVE PARA REPORTES, ANALÍTICA Y TRAZABILIDAD
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 📊 VISTAS CLAVE PARA REPORTES, ANALÍTICA Y TRAZABILIDAD
+-- ════════════════════════════════════════════════════════════════════
 
 -- 🧾 Ventas por categoría
 CREATE OR REPLACE VIEW reporte_ventas_por_categoria AS
@@ -2482,7 +2998,7 @@ SELECT
   COUNT(DISTINCT bc.comentario_id) AS total_comentarios,
   COUNT(DISTINCT v.valoracion_id) AS total_valoraciones
 FROM usuarios u
-LEFT JOIN pedidos p ON u.usuario_id = p.cliente_id
+LEFT JOIN pedidos p ON u.usuario_id = p.usuario_id
 LEFT JOIN blog_comentarios bc ON u.usuario_id = bc.usuario_id
 LEFT JOIN valoraciones v ON u.usuario_id = v.usuario_id
 GROUP BY u.usuario_id;
@@ -2528,9 +3044,11 @@ LEFT JOIN usuarios u ON l.usuario_id = u.usuario_id
 ORDER BY l.fecha DESC;
 
 
--- ================================================================
--- 🚚 RASTREABILIDAD DE PEDIDOS Y COMUNICACIÓN
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🚚 RASTREABILIDAD DE PEDIDOS Y COMUNICACIÓN
+-- ════════════════════════════════════════════════════════════════════
 
 -- Seguimiento detallado de eventos del pedido
 CREATE TABLE seguimiento_pedidos (
@@ -2585,9 +3103,11 @@ CREATE TABLE mensajes_ticket (
   FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id)
 ) ENGINE=InnoDB;
 
--- ================================================================
--- 📑 CONTABILIDAD Y FACTURACIÓN ELECTRÓNICA
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 📑 CONTABILIDAD Y FACTURACIÓN ELECTRÓNICA
+-- ════════════════════════════════════════════════════════════════════
 
 -- Catálogo de facturas electrónicas
 CREATE TABLE facturas (
@@ -2623,17 +3143,6 @@ CREATE TABLE movimientos_contables (
   FOREIGN KEY (referencia_factura) REFERENCES facturas(factura_id)
 ) ENGINE=InnoDB;
 
--- Configuración fiscal del sistema (una sola fila)
-CREATE TABLE configuracion_fiscal (
-  id INT PRIMARY KEY,
-  rfc_emisor VARCHAR(13) NOT NULL,
-  razon_social VARCHAR(255) NOT NULL,
-  regimen_fiscal VARCHAR(100),
-  certificado_digital_url VARCHAR(255),
-  clave_privada_url VARCHAR(255),
-  clave_csd VARCHAR(255),
-  fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
 
 -- Peticiones de factura realizadas por clientes
 CREATE TABLE solicitudes_factura (
@@ -2651,9 +3160,11 @@ CREATE TABLE solicitudes_factura (
   FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id)
 ) ENGINE=InnoDB;
 
--- ================================================================
--- 📘 CONTABILIDAD AVANZADA
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 📘 CONTABILIDAD AVANZADA
+-- ════════════════════════════════════════════════════════════════════
 
 -- Catálogo de cuentas contables (plan contable básico)
 CREATE TABLE cuentas_contables (
@@ -2718,9 +3229,11 @@ JOIN polizas p ON pp.poliza_id = p.poliza_id
 WHERE p.estado = 'validada' AND cc.tipo IN ('ingresos', 'egresos')
 GROUP BY cc.cuenta_id;
 
--- ================================================================
--- 🧮 PROCEDIMIENTOS ALMACENADOS PARA CONTABILIDAD AVANZADA
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🧮 PROCEDIMIENTOS ALMACENADOS PARA CONTABILIDAD AVANZADA
+-- ════════════════════════════════════════════════════════════════════
 
 -- Registrar póliza de ingreso automática por pedido pagado
 DROP PROCEDURE IF EXISTS sp_generar_poliza_ingreso_pedido;
@@ -2797,9 +3310,11 @@ END;
 //
 DELIMITER ;
 
--- ================================================================
--- 🧾 PLAN CONTABLE BÁSICO RECOMENDADO (Insert inicial)
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🧾 PLAN CONTABLE BÁSICO RECOMENDADO (INSERT INICIAL)
+-- ════════════════════════════════════════════════════════════════════
 
 INSERT INTO cuentas_contables (codigo, nombre, tipo, nivel)
 VALUES
@@ -2830,9 +3345,11 @@ VALUES
 ('5103', 'Soporte técnico y TI', 'egresos', 1),
 ('5104', 'Gastos financieros', 'egresos', 1);
 
--- ================================================================
--- 🧾 METADATOS DE DISEÑO DE BASE DE DATOS
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🧾 METADATOS DE DISEÑO DE BASE DE DATOS
+-- ════════════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS metadatos_bd (
   id INT PRIMARY KEY,
@@ -2866,9 +3383,11 @@ VALUES (
 -- SHA-256 utilizado para mayor seguridad en la verificación interna del archivo.
 
 
--- ================================================================
--- ⚙️ ESTADO DEL SISTEMA, USO, BACKUPS Y MANTENIMIENTO
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 ⚙️ ESTADO DEL SISTEMA, USO, BACKUPS Y MANTENIMIENTO
+-- ════════════════════════════════════════════════════════════════════
 
 -- Estado del sistema (encendido, mantenimiento, bloqueado, etc.)
 CREATE TABLE estado_sistema (
@@ -3024,9 +3543,11 @@ GROUP BY p.producto_id
 HAVING ventas_ultimos_30_dias < 5 AND margen_utilidad < 20
 ORDER BY margen_utilidad ASC;
 
--- ================================================================
--- 📢 CAMPAÑAS INTELIGENTES Y ESTRATEGIAS DE NEGOCIO AUTOMATIZADAS
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 📢 CAMPAÑAS INTELIGENTES Y ESTRATEGIAS DE NEGOCIO AUTOMATIZADAS
+-- ════════════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS reglas_negocio (
   regla_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -3158,9 +3679,11 @@ FROM historial_campanas h
 JOIN campanas c ON h.campana_id = c.campana_id
 GROUP BY h.campana_id;
 
--- ================================================================
--- ⚙️ INSERT DE REGLAS DE NEGOCIO Y CAMPAÑAS AUTOMÁTICAS
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 ⚙️ INSERT DE REGLAS DE NEGOCIO Y CAMPAÑAS AUTOMÁTICAS
+-- ════════════════════════════════════════════════════════════════════
 
 -- Reglas de negocio inteligentes
 INSERT INTO reglas_negocio (nombre, descripcion, tipo_evento, umbral_valor, criterio, accion_automatizada)
@@ -3235,9 +3758,11 @@ CREATE TABLE actividad_usuario (
   FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id)
 ) ENGINE=InnoDB;
 
--- ================================================================
--- 🧾 EXTENSIÓN DE ENUM PARA MÁS EVENTOS EN actividad_usuario
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🧾 EXTENSIÓN DE ENUM PARA MÁS EVENTOS EN ACTIVIDAD_USUARIO
+-- ════════════════════════════════════════════════════════════════════
 
 -- NOTA: MySQL no permite modificar ENUM directamente con ALTER COLUMN en versiones antiguas,
 --       por lo que se recomienda recrear la columna con los nuevos valores:
@@ -3262,9 +3787,11 @@ MODIFY tipo_actividad ENUM(
   'respuesta_testimonio'
 ) NOT NULL;
 
--- ================================================================
--- ⚙️ TRIGGERS AUTOMÁTICOS PARA REGISTRO DE ACTIVIDAD DE USUARIOS
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 ⚙️ TRIGGERS AUTOMÁTICOS PARA REGISTRO DE ACTIVIDAD DE USUARIOS
+-- ════════════════════════════════════════════════════════════════════
 
 DELIMITER //
 
@@ -3273,10 +3800,8 @@ CREATE TRIGGER trg_usuario_login
 AFTER UPDATE ON usuarios
 FOR EACH ROW
 BEGIN
-  IF NEW.ultima_conexion IS NOT NULL AND OLD.ultima_conexion IS NULL THEN
     INSERT INTO actividad_usuario (usuario_id, tipo_actividad, descripcion, modulo)
     VALUES (NEW.usuario_id, 'inicio_sesion', 'Inicio de sesión del usuario', 'autenticacion');
-  END IF;
 END;
 //
 
@@ -3287,10 +3812,10 @@ FOR EACH ROW
 BEGIN
   UPDATE usuarios
   SET ultima_compra = NEW.fecha_pedido
-  WHERE usuario_id = NEW.cliente_id;
+  WHERE usuario_id = NEW.usuario_id;
 
   INSERT INTO actividad_usuario (usuario_id, tipo_actividad, descripcion, modulo)
-  VALUES (NEW.cliente_id, 'compra', CONCAT('Pedido #', NEW.pedido_id, ' realizado'), 'pedidos');
+  VALUES (NEW.usuario_id, 'compra', CONCAT('Pedido #', NEW.pedido_id, ' realizado'), 'pedidos');
 END;
 //
 
@@ -3301,16 +3826,18 @@ FOR EACH ROW
 BEGIN
   IF NEW.cupon IS NOT NULL THEN
     INSERT INTO actividad_usuario (usuario_id, tipo_actividad, descripcion, modulo)
-    VALUES (NEW.cliente_id, 'cupon_redimido', CONCAT('Cupón "', NEW.cupon, '" aplicado en pedido #', NEW.pedido_id), 'promociones');
+    VALUES (NEW.usuario_id, 'cupon_redimido', CONCAT('Cupón "', NEW.cupon, '" aplicado en pedido #', NEW.pedido_id), 'promociones');
   END IF;
 END;
 //
 
 DELIMITER ;
 
--- ================================================================
--- 👥 NUEVOS TIPOS DE USUARIOS Y EVENTOS POR ROL
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 👥 NUEVOS TIPOS DE USUARIOS Y EVENTOS POR ROL
+-- ════════════════════════════════════════════════════════════════════
 -- ================================================================
 -- 👤 Roles necesarios para el sistema TianguiStore (versión corregida)
 -- Estructura estandarizada para permisos_json por módulo y acción
@@ -3322,7 +3849,7 @@ VALUES
  JSON_OBJECT(
    'usuarios', JSON_OBJECT('leer', true, 'crear', true, 'modificar', true),
    'productos', JSON_OBJECT('leer', true, 'crear', true, 'modificar', true),
-   'pedidos', JSON_OBJECT('leer', true, 'modificar', true),
+   'pedidos', JSON_OBJECT('leer', true, 'crear', true, 'modificar', true),
    'categorias', JSON_OBJECT('leer', true, 'crear', true),
    'config', JSON_OBJECT('modificar', true),
    'cupones', JSON_OBJECT('crear', true, 'modificar', true),
@@ -3334,6 +3861,7 @@ VALUES
 ('cliente', 'Comprador registrado con acceso al catálogo, historial y fidelidad.',
  JSON_OBJECT(
    'productos', JSON_OBJECT('leer', true),
+   'pedidos', JSON_OBJECT('crear', true),
    'historial', JSON_OBJECT('ver', true),
    'puntos', JSON_OBJECT('ver', true),
    'cupones', JSON_OBJECT('usar', true)
@@ -3343,7 +3871,7 @@ VALUES
 ('vendedor', 'Vendedor con catálogo propio y acceso a sus pedidos.',
  JSON_OBJECT(
    'productos', JSON_OBJECT('leer', true, 'crear', true, 'modificar', true),
-   'pedidos', JSON_OBJECT('leer', true, 'modificar', true)
+   'pedidos', JSON_OBJECT('leer', true, 'crear', true, 'modificar', true)
 )),
 
 -- 🛠️ SOPORTE
@@ -3404,7 +3932,8 @@ VALUES
 ('influencer', 'Promueve productos y recibe beneficios por referidos.',
  JSON_OBJECT(
    'productos', JSON_OBJECT('leer', true),
-   'referidos', JSON_OBJECT('crear', true, 'leer', true)
+   'referidos', JSON_OBJECT('crear', true, 'leer', true),
+   'pedidos', JSON_OBJECT('crear', true)
 )),
 
 -- 🔗 AFILIADO
@@ -3424,6 +3953,24 @@ VALUES
 ('blogger', 'Usuario con capacidad para escribir entradas de blog y responder comentarios.',
  JSON_OBJECT(
    'blog', JSON_OBJECT('crear', true, 'responder', true)
+)),
+
+-- 👨‍💼 CANDIDATO
+('candidato', 'Usuario que aplica a oportunidades laborales o colaboraciones.',
+ JSON_OBJECT(
+   'perfil_laboral', JSON_OBJECT('ver', true, 'modificar', true),
+   'documentos', JSON_OBJECT('subir', true, 'ver', true),
+   'entrevistas', JSON_OBJECT('consultar', true),
+   'estado_postulacion', JSON_OBJECT('ver', true)
+)),
+
+-- 👨‍💼 CANDIDATO
+('candidato', 'Usuario que aplica a oportunidades laborales o colaboraciones.',
+ JSON_OBJECT(
+   'perfil_laboral', JSON_OBJECT('ver', true, 'modificar', true),
+   'documentos', JSON_OBJECT('subir', true, 'ver', true),
+   'entrevistas', JSON_OBJECT('consultar', true),
+   'estado_postulacion', JSON_OBJECT('ver', true)
 ))
 
 ON DUPLICATE KEY UPDATE descripcion = VALUES(descripcion), permisos_json = VALUES(permisos_json);
@@ -3533,9 +4080,11 @@ ALTER TABLE tickets_soporte
 ADD COLUMN punto_id INT DEFAULT NULL,
 ADD FOREIGN KEY (punto_id) REFERENCES puntos_entrega(punto_id);
 
--- ================================================================
--- 🛠️ SOPORTE PARA RETAIL, SERVICIOS, SUSCRIPCIONES Y EVENTOS
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🛠️ SOPORTE PARA RETAIL, SERVICIOS, SUSCRIPCIONES Y EVENTOS
+-- ════════════════════════════════════════════════════════════════════
 
 -- Marcar tipo de producto: físico, servicio, suscripción, evento, etc.
 ALTER TABLE productos
@@ -3661,12 +4210,12 @@ CREATE TABLE servicios_profesionales (
 CREATE TABLE citas_profesionales (
   cita_id INT AUTO_INCREMENT PRIMARY KEY,
   servicio_id INT NOT NULL,
-  cliente_id INT NOT NULL,
+  usuario_id INT NOT NULL,
   fecha_hora DATETIME NOT NULL,
   estado ENUM('pendiente', 'confirmada', 'completada', 'cancelada') DEFAULT 'pendiente',
   notas TEXT,
   FOREIGN KEY (servicio_id) REFERENCES servicios_profesionales(servicio_id),
-  FOREIGN KEY (cliente_id) REFERENCES usuarios(usuario_id)
+  FOREIGN KEY (usuario_id) REFERENCES usuarios(usuario_id)
 ) ENGINE=InnoDB;
 
 -- Valoraciones específicas de servicios profesionales
@@ -3798,9 +4347,11 @@ CREATE TABLE intentos_pago (
   FOREIGN KEY (pago_id) REFERENCES pagos(pago_id)
 ) ENGINE=InnoDB;
 
--- ================================================================
--- 🔒 SEGURIDAD, INTEGRIDAD Y REGLAS DE NEGOCIO ESTRICTAS
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 🔒 SEGURIDAD, INTEGRIDAD Y REGLAS DE NEGOCIO ESTRICTAS
+-- ════════════════════════════════════════════════════════════════════
 
 -- ✔️ Validaciones de integridad básicas reforzadas
 ALTER TABLE usuarios ADD CONSTRAINT chk_email_formato CHECK (correo_electronico LIKE '%@%.%');
@@ -3845,9 +4396,11 @@ END;
 //
 
 DELIMITER ;
--- ================================================================
--- 📜 POLÍTICAS DE NEGOCIO APLICABLES, AUTOMATIZADAS Y SEGURAS
--- ================================================================
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- 📦 📜 POLÍTICAS DE NEGOCIO APLICABLES, AUTOMATIZADAS Y SEGURAS
+-- ════════════════════════════════════════════════════════════════════
 
 -- 🧩 Tabla maestra de políticas operativas del sistema
 CREATE TABLE IF NOT EXISTS politicas_negocio (
@@ -4087,3 +4640,39 @@ SELECT * FROM vista_estado_instalacion;
 
 
 
+
+
+-- 🔧 Asegura que la columna 'borrado_logico' exista en pedidos
+-- 🔒 Verificación segura de columna 'borrado_logico' en 'pedidos'
+
+SET @col_exists = (
+  SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = DATABASE()
+    AND table_name = 'pedidos'
+    AND column_name = 'borrado_logico'
+);
+
+SET @sql = IF(@col_exists = 0,
+  'ALTER TABLE pedidos ADD COLUMN borrado_logico BOOLEAN NOT NULL DEFAULT 0 COMMENT "Marca lógica de borrado";',
+  'SELECT "✔️ La columna borrado_logico ya existe en pedidos."');
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+
+
+-- ════════════════════════════════════════════════════════════════════
+-- ✅ RESUMEN FINAL DE INTEGRIDAD Y REGISTROS
+-- ════════════════════════════════════════════════════════════════════
+
+SELECT 'usuarios' AS modulo, COUNT(*) AS registros FROM usuarios;
+SELECT 'productos' AS modulo, COUNT(*) AS registros FROM productos;
+SELECT 'pedidos' AS modulo, COUNT(*) AS registros FROM pedidos;
+SELECT 'detalle_pedido' AS modulo, COUNT(*) AS registros FROM detalle_pedido;
+SELECT 'carrito' AS modulo, COUNT(*) AS registros FROM carrito;
+SELECT 'cupones' AS modulo, COUNT(*) AS registros FROM cupones;
+SELECT 'estados_pedido' AS modulo, COUNT(*) AS registros FROM estados_pedido;
+SELECT 'auditoria_errores' AS modulo, COUNT(*) AS registros FROM auditoria_errores;
+
+-- 🎉 Estructura cargada y validada. TianguiStore listo para operar.

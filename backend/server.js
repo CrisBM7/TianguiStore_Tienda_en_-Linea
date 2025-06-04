@@ -17,9 +17,9 @@
 const path = require("path"); // Utilizado para gestionar rutas de archivos
 const dotenv = require("dotenv"); // Cargar variables de entorno desde un archivo .env
 const express = require("express"); // Framework para construir el servidor web
-const cors = require("cors"); // Habilitar CORS
+//const cors = require("cors"); // Habilitar CORS
 const helmet = require("helmet"); // Seguridad HTTP
-const rateLimit = require("express-rate-limit"); // Limitar solicitudes
+//const rateLimit = require("express-rate-limit"); // Limitar solicitudes
 const hpp = require("hpp"); // Prevención de contaminación de parámetros
 const ProgressBar = require("progress"); // Barra de progreso
 const chalk = require("chalk"); // Para colores y formato en la terminal
@@ -97,15 +97,13 @@ if (!IS_DEV) {
 // ─────────────────────────────────────────────────────────────
 // CONFIGURACIÓN DE RATE LIMITING PARA PROTEGER LA API 🛡️
 // ─────────────────────────────────────────────────────────────
-app.use(
-  rateLimit({
-    windowMs: 15 * 60 * 1000,  // 15 minutos
-    max: 100000000000000,  // Limitar a 100 peticiones por ventana
-    message: `⚡ Demasiadas solicitudes. Intente más tarde.`
-  })
-);
-
-app.use(express.urlencoded({ extended: true }));
+//app.use(
+//  rateLimit({
+//   windowMs: 15 * 60 * 1000,  // 15 minutos
+//  max: 100,  // Limitar a 100 peticiones por ventana
+//   message: `⚡ Demasiadas solicitudes. Intente más tarde.`
+// })
+//);
 
 // ─────────────────────────────────────────────────────────────
 // CONFIGURACIÓN DE HPP (HTTP PARAMETER POLLUTION) 🚫
@@ -115,7 +113,7 @@ app.use(hpp()); // Previene la contaminación de parámetros HTTP
 // ─────────────────────────────────────────────────────────────
 // CONFIGURACIÓN DE CORS PARA PERMITIR PETICIONES CRUZADAS 🌐
 // ─────────────────────────────────────────────────────────────
-app.use(cors({ origin: IS_DEV ? "*" : (process.env.CORS_ORIGIN || "https://tutiendaonline.com") }));
+//app.use(cors({ origin: IS_DEV ? "*" : (process.env.CORS_ORIGIN || "https://tutiendaonline.com") }));
 
 // ─────────────────────────────────────────────────────────────
 // LEER JSON EN LAS PETICIONES 📄
@@ -138,6 +136,7 @@ app.use("/carrito", require("./routes/carrito.routes"));
 app.use("/pedidos", require("./routes/pedido.routes"));
 app.use("/categorias", require("./routes/categorias.routes"));
 app.use("/marcas", require("./routes/marcas.routes"));
+app.use("/marketing", require("./routes/marketing.routes"));
 app.use("/usuarios", require("./routes/usuarios.routes"));
 app.use("/configuracion", require("./routes/configuracion.routes"));
 app.use("/estadisticas", require("./routes/estadisticas.routes"));
@@ -152,7 +151,7 @@ app.use("/estadisticas", require("./routes/estadisticas.routes"));
 
 // Página 404 personalizada
 app.use((req, res) => {
-  console.error(chalk.red(`❌ [${getCurrentDateTime()}] Página no encontrada: ${req.originalUrl}`));
+  //console.error(chalk.red(`❌ [${getCurrentDateTime()}] Página no encontrada: ${req.originalUrl}`));
   res.status(404).sendFile(path.join(PUBLIC_DIR, "404.html"));
 });
 

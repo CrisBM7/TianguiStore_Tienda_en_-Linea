@@ -2,10 +2,9 @@
  * 📁 MODELO: producto.model.js
  * 📦 TABLA: productos
  *
- * Este modelo gestiona todas las operaciones CRUD asociadas a productos
- * dentro del sistema TianguiStore. Permite obtener productos publicados,
- * insertar nuevos registros con estructura extendida, actualizar
- * dinámicamente campos proporcionados y realizar eliminación física.
+ * Este modelo gestiona las operaciones CRUD para productos en TianguiStore.
+ * Incluye control extendido para productos físicos y digitales,
+ * soporte para galería multimedia, y lógica de publicación.
  */
 
 const db = require("../db/connection");
@@ -13,7 +12,6 @@ const db = require("../db/connection");
 // ───────────────────────────────────────────────
 // 📋 OBTENER TODOS LOS PRODUCTOS PUBLICADOS
 // Incluye JOIN con marcas y categorías.
-// Solo productos con `publicado = TRUE` y `status = 'activo'`.
 // ───────────────────────────────────────────────
 async function obtenerProductosPublicados() {
   const [rows] = await db.query(`
@@ -22,13 +20,13 @@ async function obtenerProductosPublicados() {
     LEFT JOIN marcas m ON p.marca_id = m.marca_id
     LEFT JOIN categorias c ON p.categoria_id = c.categoria_id
     WHERE p.publicado = TRUE AND p.status = 'activo'
+    ORDER BY p.nombre ASC
   `);
   return rows;
 }
 
 // ───────────────────────────────────────────────
 // 🔍 OBTENER PRODUCTO POR ID
-// Devuelve un solo producto o `null` si no existe.
 // ───────────────────────────────────────────────
 async function obtenerProductoPorId(id) {
   const [rows] = await db.query(`
@@ -38,8 +36,7 @@ async function obtenerProductoPorId(id) {
 }
 
 // ───────────────────────────────────────────────
-// ➕ INSERTAR NUEVO PRODUCTO (con insertId)
-// Estructura extendida para productos físicos y digitales.
+// ➕ INSERTAR NUEVO PRODUCTO (estructura extendida)
 // ───────────────────────────────────────────────
 async function insertarProducto(datos) {
   console.log("Entra a insertar producto SQL");
@@ -73,9 +70,9 @@ async function insertarProducto(datos) {
     slug_producto?.trim(),
     descripcion?.trim(),
     especificaciones?.trim(),
-    parseFloat(precio),
-    parseFloat(descuento),
-    parseInt(stock),
+    Number.isFinite(+precio) ? parseFloat(precio) : 0,
+    Number.isFinite(+descuento) ? parseFloat(descuento) : 0,
+    Number.isFinite(+stock) ? parseInt(stock) : 0,
     parseInt(categoria_id),
     marca_id ? parseInt(marca_id) : null,
     proveedor_id ? parseInt(proveedor_id) : null,
@@ -89,24 +86,24 @@ async function insertarProducto(datos) {
     Boolean(publicado),
     Boolean(destacado),
     Boolean(meses_sin_intereses),
-    estado_visible,
-    status,
-    tipo_pago,
-    peso_kg,
+    estado_visible?.trim(),
+    status?.trim(),
+    tipo_pago?.trim(),
+    peso_kg !== null ? parseFloat(peso_kg) : null,
     dimensiones_cm?.trim() || null,
-    garantia_meses,
+    garantia_meses !== null ? parseInt(garantia_meses) : null,
     Boolean(es_digital),
-    tipo_digital,
+    tipo_digital?.trim() || null,
     archivo_descarga_url?.trim() || null,
     clave_acceso?.trim() || null,
-    duracion_dias
+    duracion_dias !== null ? parseInt(duracion_dias) : null
   ]);
 
   return result.insertId;
 }
 
 // ───────────────────────────────────────────────
-// ✏️ ACTUALIZAR PRODUCTO (dinámico por campos)
+// ✏️ ACTUALIZAR PRODUCTO DINÁMICAMENTE
 // ───────────────────────────────────────────────
 async function actualizarProducto(id, datos) {
   const campos = [];
@@ -119,7 +116,7 @@ async function actualizarProducto(id, datos) {
     }
   }
 
-  if (campos.length === 0) return;
+  if (campos.length === 0) return; // No hay datos a actualizar
 
   valores.push(parseInt(id));
   const sql = `UPDATE productos SET ${campos.join(", ")} WHERE producto_id = ?`;
@@ -127,13 +124,51 @@ async function actualizarProducto(id, datos) {
 }
 
 // ───────────────────────────────────────────────
-// 🗑️ ELIMINAR PRODUCTO (físico, no lógico)
-// Recomendado implementar borrado lógico más adelante.
+// 🗑️ ELIMINAR PRODUCTO (borrado físico actual)
+// ⚠️ Se recomienda cambiar por borrado lógico en producción.
 // ───────────────────────────────────────────────
 async function eliminarProducto(id) {
   return await db.query(`
     DELETE FROM productos WHERE producto_id = ?
   `, [parseInt(id)]);
+}
+
+// 🔍 Obtener producto con datos extendidos (galería, marca, categoría, subcategoría, etc.)
+async function obtenerProductoPorIdExtendido(id) {
+  const [rows] = await db.query(`
+    SELECT 
+      p.*, 
+      m.nombre_marca, 
+      c.nombre_categoria, 
+      s.nombre_subcategoria
+    FROM productos p
+    LEFT JOIN marcas m ON p.marca_id = m.marca_id
+    LEFT JOIN categorias c ON p.categoria_id = c.categoria_id
+    LEFT JOIN subcategorias s ON p.subcategoria_id = s.subcategoria_id
+    WHERE p.producto_id = ?
+  `, [parseInt(id)]);
+  return rows[0] || null;
+}
+
+// ───────────────────────────────────────────────
+// 🔄 OBTENER PRODUCTOS RELACIONADOS POR CATEGORÍA
+// (excluye el producto actual, solo productos activos)
+// ───────────────────────────────────────────────
+async function obtenerProductosRelacionados(producto_id, categoria_id) {
+  const [rows] = await db.query(`
+    SELECT p.*, m.nombre_marca, c.nombre_categoria
+    FROM productos p
+    LEFT JOIN marcas m ON p.marca_id = m.marca_id
+    LEFT JOIN categorias c ON p.categoria_id = c.categoria_id
+    WHERE p.categoria_id = ?
+      AND p.producto_id != ?
+      AND p.status = 'activo'
+      AND p.publicado = TRUE
+    ORDER BY RAND()
+    LIMIT 6
+  `, [categoria_id, producto_id]);
+
+  return rows;
 }
 
 // ───────────────────────────────────────────────
@@ -142,7 +177,9 @@ async function eliminarProducto(id) {
 module.exports = {
   obtenerProductosPublicados,
   obtenerProductoPorId,
+  obtenerProductoPorIdExtendido,
   insertarProducto,
   actualizarProducto,
-  eliminarProducto
+  eliminarProducto,
+  obtenerProductosRelacionados 
 };

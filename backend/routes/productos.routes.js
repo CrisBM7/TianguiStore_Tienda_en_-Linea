@@ -1,24 +1,12 @@
 /**
- * 📁 RUTA: routes/productos.routes.js
- * 📦 Descripción: Rutas de productos (catálogo).
- * 🔐 Reglas de acceso:
- *   - Lectura: pública
- *   - Escritura: requiere autenticación y roles permitidos
- * 💾 Incluye manejo de archivos (form-data) vía multer
+ * 📁 RUTA: productos.routes.js
+ * 📦 Gestión de productos: públicas y protegidas con validación robusta
+ * Compatibilidad: Todas las rutas existentes se mantienen tal como están.
  */
 
 const express = require("express");
 const router = express.Router();
-
-// 🧠 Controladores
-const {
-  obtenerProductos,
-  obtenerProductoPorId,
-  agregarProducto,
-  agregarProductoConArchivos,
-  actualizarProducto,
-  eliminarProducto
-} = require("../controllers/productosController");
+const productosController = require("../controllers/productosController");
 
 // 🛡️ Middlewares
 const { verificarAutenticacion, permitirRoles } = require("../middlewares/authMiddleware");
@@ -26,81 +14,97 @@ const { verificarAutenticacion, permitirRoles } = require("../middlewares/authMi
 const sanitizarEntradas = require("../middlewares/sanitizeAndValidateMiddleware");
 
 const validarResultados = require("../middlewares/validacion/validarResultados");
+const upload = require("../middlewares/uploadMiddleware");
+
+// ✅ Esquemas de validación
 const { productosSchema } = require("../middlewares/validacion/productosSchema");
 const { productosUpdateSchema } = require("../middlewares/validacion/productosUpdateSchema");
-const upload = require("../middlewares/uploadMiddleware"); // Multer configurado
 
-// ───────────────────────────────────────────────
-// 🔓 Rutas públicas — No requieren autenticación
-// ───────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// 🌐 RUTAS PÚBLICAS
+// ─────────────────────────────────────────────
 
 /**
- * 📦 GET /productos
- * Obtener todos los productos publicados
+ * @route   GET /productos
+ * @desc    Obtener listado de productos visibles (paginado desde frontend)
+ * @access  Público
  */
-router.get("/", obtenerProductos);
+router.get("/", productosController.obtenerProductos);
 
 /**
- * 🔍 GET /productos/:id
- * Obtener un producto específico (con imágenes y modelo 3D)
+ * @route   GET /productos/:id
+ * @desc    Obtener producto básico por ID (uso general)
+ * @access  Público
  */
-router.get("/:id", obtenerProductoPorId);
-
-// ───────────────────────────────────────────────
-// 🔐 Rutas protegidas — Requieren autenticación + permisos
-// ───────────────────────────────────────────────
+router.get("/:id", productosController.obtenerProductoPorId);
 
 /**
- * ➕ POST /productos
- * Crear nuevo producto sin archivos
+ * @route   GET /productos/detalle/:id
+ * @desc    Obtener detalle enriquecido de producto (para vista detalleProducto)
+ * @access  Público
+ */
+router.get("/detalle/:id", productosController.obtenerDetalleProducto);
+
+// ─────────────────────────────────────────────
+// 🔐 RUTAS PROTEGIDAS (Requiere autenticación y rol)
+// ─────────────────────────────────────────────
+
+/**
+ * @route   POST /productos
+ * @desc    Crear nuevo producto desde JSON (sin archivos)
+ * @access  Admin | Soporte
  */
 router.post(
   "/",
-  //console.log("Entro al post de registro"),
-  //verificarAutenticacion,
-  //permitirRoles("admin", "vendedor"),
-  //productosSchema,
-  //validarResultados,
-  agregarProducto
+  verificarAutenticacion,
+  permitirRoles("admin", "soporte"),
+  productosSchema,
+  validarResultados,
+  productosController.agregarProducto
 );
 
 /**
- * 🖼️ POST /productos/archivos
- * Crear nuevo producto con imágenes y modelo 3D (form-data)
+ * @route   POST /productos/archivos
+ * @desc    Crear producto con imágenes y/o modelo 3D
+ * @access  Admin | Soporte
  */
 router.post(
   "/archivos",
   verificarAutenticacion,
-  permitirRoles("admin", "vendedor"),
+  permitirRoles("admin", "soporte"),
   upload.fields([
-    { name: "imagenes", maxCount: 10 },
+    { name: "imagenes", maxCount: 5 },
     { name: "modelo3d", maxCount: 1 }
   ]),
-  agregarProductoConArchivos
+  productosSchema,
+  validarResultados,
+  productosController.agregarProductoConArchivos
 );
 
 /**
- * ✏️ PUT /productos/:id
- * Actualizar producto existente (validación parcial)
+ * @route   PUT /productos/:id
+ * @desc    Actualizar producto por ID
+ * @access  Admin | Soporte
  */
 router.put(
   "/:id",
   verificarAutenticacion,
-  permitirRoles("admin", "vendedor"),
+  permitirRoles("admin", "soporte"),
   productosUpdateSchema,
   validarResultados,
-  actualizarProducto
+  productosController.actualizarProducto
 );
 
 /**
- * 🗑️ DELETE /productos/:id
- * Eliminar un producto (solo admin)
+ * @route   DELETE /productos/:id
+ * @desc    Eliminar producto por ID
+ * @access  Admin
  */
 router.delete(
   "/:id",
   verificarAutenticacion,
   permitirRoles("admin"),
-  eliminarProducto
+  productosController.eliminarProducto
 );
 
 module.exports = router;

@@ -2,39 +2,61 @@
  * 📁 CONTROLADOR: productosController.js
  * 📦 Módulo: Gestión de productos (catálogo principal)
  *
- * 🔹 Funcionalidades:
- *   - Obtener productos publicados (visibles)
- *   - Consultar detalle completo por ID (con galería multimedia)
- *   - Crear producto (JSON o archivos)
- *   - Actualizar producto
- *   - Eliminar producto
+ * Funcionalidades:
+ * - Obtener productos visibles
+ * - Consultar detalle con galería
+ * - Consultar detalle enriquecido (con promociones y estadísticas)
+ * - Crear producto (JSON o archivos)
+ * - Actualizar producto existente
+ * - Eliminar producto (borrado lógico)
  *
- * 📂 Modelos utilizados:
- *   - productosModel.js
- *   - galeriaModel.js
+ * Modelos utilizados:
+ * - productosModel.js
+ * - galeriaModel.js
+ * - promocionesModel.js
+ * - ventasModel.js
  */
 
-const productosModel = require('../models/producto.model');
-const galeriaModel = require('../models/galeria.model');
+const productosModel = require("../models/producto.model");
+const galeriaModel = require("../models/galeria.model");
+const promocionesModel = require("../models/marketing.model");
+const ventasModel = require("../models/ventas.model");
 
 // ─────────────────────────────────────────────
-// 📥 GET /productos → Obtener todos los productos publicados
+// 📥 GET /api/productos (con etiquetas visuales)
 // ─────────────────────────────────────────────
 exports.obtenerProductos = async (req, res) => {
   try {
     const productos = await productosModel.obtenerProductosPublicados();
-    res.status(200).json(productos);
+
+    const ahora = new Date();
+    const productosConEtiquetas = productos.map((producto) => {
+      const fechaCreacion = new Date(producto.fecha_creacion);
+      const diasDesdeCreacion = Math.floor((ahora - fechaCreacion) / (1000 * 60 * 60 * 24));
+
+      return {
+        ...producto,
+        es_nuevo: diasDesdeCreacion <= 15,        // 🟢 Nuevo: < 15 días
+        es_popular: producto.stock > 50,          // 🟡 Popular: stock alto
+        bajo_stock: producto.stock <= 5,          // 🟠 ¡Últimos!: stock bajo
+        destacado: Boolean(producto.destacado)    // 🔵 Destacado
+      };
+    });
+
+    res.status(200).json(productosConEtiquetas);
   } catch (error) {
     console.error("❌ Error al obtener productos:", error);
     res.status(500).json({ mensaje: "Error interno al obtener productos." });
   }
 };
 
+
 // ─────────────────────────────────────────────
-// 🔍 GET /productos/:id → Obtener detalle completo de producto
+// 🔍 GET /api/productos/:id (detalle básico)
 // ─────────────────────────────────────────────
 exports.obtenerProductoPorId = async (req, res) => {
   const { id } = req.params;
+
   try {
     const producto = await productosModel.obtenerProductoPorId(id);
     if (!producto) {
@@ -42,8 +64,8 @@ exports.obtenerProductoPorId = async (req, res) => {
     }
 
     const galeria = await galeriaModel.obtenerGaleriaPorProducto(id);
-    const imagenes = galeria.filter(e => e.tipo === "imagen").map(e => e.url);
-    const modelo3d = galeria.find(e => e.tipo === "modelo_3d")?.url || null;
+    const imagenes = galeria.filter(g => g.tipo === "imagen").map(g => g.url);
+    const modelo3d = galeria.find(g => g.tipo === "modelo_3d")?.url || null;
 
     res.status(200).json({ ...producto, imagenes, modelo3d });
   } catch (error) {
@@ -53,17 +75,52 @@ exports.obtenerProductoPorId = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────
-// ➕ POST /productos → Crear producto (JSON plano)
+// 🔍 GET /api/producto-detalle/:id (detalle enriquecido)
+// ─────────────────────────────────────────────
+exports.obtenerDetalleProducto = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const producto = await productosModel.obtenerProductoPorIdExtendido(id);
+    if (!producto) {
+      return res.status(404).json({ mensaje: "Producto no encontrado." });
+    }
+
+    const galeria = await galeriaModel.obtenerGaleriaPorProducto(id);
+    const imagenes = galeria.filter(g => g.tipo === "imagen").map(g => g.url);
+    const videos = galeria.filter(g => g.tipo === "video").map(g => g.url);
+    const modelo3d = galeria.find(g => g.tipo === "modelo_3d")?.url || null;
+
+    const promociones = await promocionesModel.obtenerPromocionesPorProducto(id);
+    const ventas = await ventasModel.obtenerEstadisticasProducto(id);
+    const relacionados = await productosModel.obtenerProductosRelacionados(id, producto.categoria_id);
+
+    return res.status(200).json({
+      ...producto,
+      imagenes,
+      videos,
+      modelo3d,
+      promociones,
+      ventas,
+      relacionados
+    });
+  } catch (error) {
+    console.error(`❌ Error al obtener detalle de producto ID ${id}:`, error);
+    return res.status(500).json({ mensaje: "Error interno al obtener detalle del producto." });
+  }
+};
+
+// ─────────────────────────────────────────────
+// ➕ POST /api/productos
 // ─────────────────────────────────────────────
 exports.agregarProducto = async (req, res) => {
   console.log("intentamos agregar el producto : ");
   //console.log(req);
   console.log(req.body);
   const producto = req.body;
-  const requeridos = ["nombre", "precio", "categoria_id", "proveedor_id","slug_producto"];
+  const camposObligatorios = ["nombre", "precio", "categoria_id", "proveedor_id"];
 
-  for (const campo of requeridos) {
-    console.log("llega a validar: " + campo)
+  for (const campo of camposObligatorios) {
     if (!producto[campo]) {
       return res.status(400).json({ mensaje: `El campo '${campo}' es obligatorio.` });
     }
@@ -73,7 +130,7 @@ exports.agregarProducto = async (req, res) => {
     console.log("llega a insert antes de bd")
     const insertId = await productosModel.insertarProducto(producto);
     res.status(201).json({
-      mensaje: "Producto registrado correctamente.",
+      mensaje: "✅ Producto registrado correctamente.",
       id: insertId
     });
   } catch (error) {
@@ -83,14 +140,14 @@ exports.agregarProducto = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────
-// 🖼️ POST /productos/archivos → Crear producto con archivos
+// 🖼️ POST /api/productos/archivos
 // ─────────────────────────────────────────────
 exports.agregarProductoConArchivos = async (req, res) => {
   console.log("agregarProductoConArchivos")
   const datos = req.body;
-  const requeridos = ["nombre", "precio", "categoria_id", "tipo_pago"];
+  const camposObligatorios = ["nombre", "precio", "categoria_id", "tipo_pago"];
 
-  for (const campo of requeridos) {
+  for (const campo of camposObligatorios) {
     if (!datos[campo]) {
       return res.status(400).json({ mensaje: `El campo '${campo}' es obligatorio.` });
     }
@@ -99,7 +156,6 @@ exports.agregarProductoConArchivos = async (req, res) => {
   try {
     const productoId = await productosModel.insertarProducto(datos);
 
-    // Subir imágenes
     const imagenes = req.files?.imagenes || [];
     for (const archivo of imagenes) {
       await galeriaModel.insertarElemento({
@@ -110,7 +166,6 @@ exports.agregarProductoConArchivos = async (req, res) => {
       });
     }
 
-    // Subir modelo 3D
     const modelo3d = req.files?.modelo3d?.[0];
     if (modelo3d) {
       await galeriaModel.insertarElemento({
@@ -121,7 +176,7 @@ exports.agregarProductoConArchivos = async (req, res) => {
     }
 
     res.status(201).json({
-      mensaje: "Producto creado correctamente con archivos.",
+      mensaje: "✅ Producto creado correctamente con archivos.",
       id: productoId
     });
   } catch (error) {
@@ -131,14 +186,14 @@ exports.agregarProductoConArchivos = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────
-// ✏️ PUT /productos/:id → Actualizar producto existente
+// ✏️ PUT /api/productos/:id
 // ─────────────────────────────────────────────
 exports.actualizarProducto = async (req, res) => {
   const { id } = req.params;
   const datos = req.body;
-  const requeridos = ["nombre", "precio", "categoria_id"];
+  const camposObligatorios = ["nombre", "precio", "categoria_id"];
 
-  for (const campo of requeridos) {
+  for (const campo of camposObligatorios) {
     if (!datos[campo]) {
       return res.status(400).json({ mensaje: `El campo '${campo}' es obligatorio.` });
     }
@@ -146,7 +201,7 @@ exports.actualizarProducto = async (req, res) => {
 
   try {
     await productosModel.actualizarProducto(id, datos);
-    res.status(200).json({ mensaje: "Producto actualizado correctamente." });
+    res.status(200).json({ mensaje: "✅ Producto actualizado correctamente." });
   } catch (error) {
     console.error(`❌ Error al actualizar producto ID ${id}:`, error);
     res.status(500).json({ mensaje: "Error interno al actualizar producto." });
@@ -154,14 +209,14 @@ exports.actualizarProducto = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────
-// 🗑️ DELETE /productos/:id → Eliminar producto
+// 🗑️ DELETE /api/productos/:id
 // ─────────────────────────────────────────────
 exports.eliminarProducto = async (req, res) => {
   const { id } = req.params;
 
   try {
     await productosModel.eliminarProducto(id);
-    res.status(200).json({ mensaje: "Producto eliminado correctamente." });
+    res.status(200).json({ mensaje: "🗑️ Producto eliminado correctamente." });
   } catch (error) {
     console.error(`❌ Error al eliminar producto ID ${id}:`, error);
     res.status(500).json({ mensaje: "Error interno al eliminar producto." });

@@ -1,30 +1,12 @@
-/**
- * 📦 carrito.js
- * 
- * Descripción:
- * Este archivo contiene la lógica para manejar el carrito de compras en TianguiStore. 
- * Permite mostrar los productos del carrito, modificar las cantidades, eliminar productos, 
- * vaciar el carrito y realizar el pedido. Además, gestiona la validación del stock y la 
- * visualización de toasts para notificaciones.
- * 
- * Funciones:
- * - Mostrar carrito
- * - Modificar cantidades y eliminar productos
- * - Realizar pedido con verificación de stock
- * - Manejo de toasts flotantes para notificaciones
- * 
- * Autor: I.S.C. Erick Renato Vega Ceron
- * Fecha de Creación: Mayo 2025
- */
-
-const BASE_URL = window.location.origin; // URL base del sitio
-const token = localStorage.getItem("token"); // Obtener token de autenticación
+// 📦 TianguiStore - carrito.js
+const BASE_URL = window.location.origin;
+const token = localStorage.getItem("token");
 
 document.addEventListener("DOMContentLoaded", () => {
   mostrarCarrito();
   actualizarContadorCarrito();
 
-  // 🛒 Botón para procesar pedido
+  // Botón: Proceder al pago
   const btnPagar = document.getElementById("btnRealizarPedido");
   if (btnPagar) {
     btnPagar.addEventListener("click", () => {
@@ -33,11 +15,11 @@ document.addEventListener("DOMContentLoaded", () => {
         window.location.href = `${BASE_URL}/login.html`;
         return;
       }
-      realizarPedidoDesdeLocalStorage();
+      validarStockAntesDeCheckout();
     });
   }
 
-  // 🧹 Botón para vaciar carrito
+  // Botón: Vaciar carrito
   const btnVaciar = document.getElementById("vaciar-carrito");
   if (btnVaciar) {
     btnVaciar.addEventListener("click", () => {
@@ -49,109 +31,165 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// 🔍 Mostrar productos del carrito en pantalla
+/* ══════════════════════════════════════════════
+   🛒 Mostrar contenido del carrito
+══════════════════════════════════════════════ */
 function mostrarCarrito() {
   const carrito = JSON.parse(localStorage.getItem("carrito")) || [];
   const lista = document.getElementById("lista-carrito");
   const totalLabel = document.getElementById("total_etiqueta");
+  const subtotalLabel = document.getElementById("resumen-subtotal");
+  const ivaLabel = document.getElementById("resumen-iva");
 
-  if (!lista || !totalLabel) return;
+  if (!lista || !totalLabel || !subtotalLabel || !ivaLabel) return;
 
   lista.innerHTML = "";
 
   if (carrito.length === 0) {
-    lista.innerHTML = "<p class='text-center text-muted'>🛒 Tu carrito está vacío.</p>";
+    lista.innerHTML = `
+      <li class="collection-item center-align grey-text text-lighten-1">
+        🛒 Tu carrito está vacío.
+      </li>`;
+    subtotalLabel.textContent = "$0.00";
+    ivaLabel.textContent = "$0.00";
     totalLabel.textContent = "Total: $0.00";
     return;
   }
 
-  let total = 0;
+  let subtotal = 0;
+  const IVA_PORCENTAJE = 0.16;
 
-  carrito.forEach(producto => {
+  carrito.forEach((producto) => {
     const precio = parseFloat(producto.precio) || 0;
-    const subtotal = precio * producto.cantidad;
-    total += subtotal;
+    const cantidad = producto.cantidad || 1;
+    const itemSubtotal = precio * cantidad;
+    subtotal += itemSubtotal;
 
-    const imagen = producto.imagen_url
-      ? (producto.imagen_url.startsWith("http")
-        ? producto.imagen_url
-        : `${BASE_URL}/${producto.imagen_url.replace(/^\/+/, '')}`)
-      : `${BASE_URL}/imagenes/default.png`;
+    const imagenUrl =
+      producto.imagen_url && producto.imagen_url.trim()
+        ? producto.imagen_url.startsWith("http")
+          ? producto.imagen_url
+          : `${BASE_URL}/${producto.imagen_url.replace(/^\/+/, "")}`
+        : `${BASE_URL}/imagenes/default.png`;
 
-    lista.innerHTML += `
-      <li class="list-group-item d-flex align-items-center shadow-sm p-3 rounded">
-        <img src="${imagen}" alt="${producto.nombre}" 
-             class="img-thumbnail me-3 rounded-circle" 
-             style="width: 60px; height: 60px; object-fit: cover;"
-             onerror="this.src='${BASE_URL}/imagenes/default.png';">
-        <div class="flex-grow-1">
-          <h6 class="mb-1 text-primary fw-bold">${producto.nombre}</h6>
-          <small class="text-muted">Precio: <span class="text-dark fw-bold">$${precio.toFixed(2)}</span></small> |
-          <small class="text-muted">Subtotal: <span class="text-success fw-bold">$${subtotal.toFixed(2)}</span></small>
+    const item = document.createElement("li");
+    item.className = "collection-item grey darken-4 white-text";
+
+    item.innerHTML = `
+      <div class="row valign-wrapper producto-item">
+        <div class="col s3 center-align">
+         <img src="${imagenUrl}" alt="${producto.nombre}"
+        class="responsive-img z-depth-2 producto-img"
+        style="width: 100px; height: 100px; object-fit: cover; border-radius: 0.5rem;"
+        data-id="${producto.id}" />
         </div>
-        <div class="d-flex align-items-center">
-          <button class="btn btn-outline-danger btn-sm disminuir-cantidad rounded-circle me-2" data-id="${producto.id}">
-            <i class="fas fa-minus"></i>
-          </button>
-          <span class="mx-2 cantidad-producto fw-bold text-dark">${producto.cantidad}</span>
-          <button class="btn btn-outline-success btn-sm aumentar-cantidad rounded-circle ms-2" data-id="${producto.id}">
-            <i class="fas fa-plus"></i>
-          </button>
+        <div class="col s9">
+          <h6 class="truncate white-text">${producto.nombre}</h6>
+          <p class="grey-text text-lighten-1">
+            Precio: <strong class="teal-text">$${precio.toFixed(2)}</strong> |
+            Subtotal: <strong class="green-text">$${itemSubtotal.toFixed(2)}</strong>
+          </p>
+          <div class="center-align" style="margin-top: 0.5rem;">
+            <div style="margin-bottom: 0.6rem;">
+              <button class="btn-floating btn-small red darken-2 disminuir-cantidad" data-id="${producto.id}">
+                <i class="fas fa-minus"></i>
+              </button>
+              <span class="mx-2 white-text" style="margin: 0 0.8rem;">${cantidad}</span>
+              <button class="btn-floating btn-small green darken-2 aumentar-cantidad" data-id="${producto.id}">
+                <i class="fas fa-plus"></i>
+              </button>
+            </div>
+            <button class="btn-flat btn-small white-text red-text eliminar-producto" data-id="${producto.id}">
+              <i class="fas fa-trash-alt left"></i> Eliminar
+            </button>
+          </div>
         </div>
-        <button class="btn btn-outline-danger btn-sm eliminar-producto ms-3 px-3 rounded-pill" data-id="${producto.id}">
-          <i class="fas fa-trash-alt"></i> Eliminar
-        </button>
-      </li>`;
+      </div>
+    `;
+
+    lista.appendChild(item);
+    const img = item.querySelector("img.producto-img");
+    if (img) {
+      img.addEventListener("error", () => {
+        if (!img.dataset.defaulted) {
+          img.dataset.defaulted = "true";
+          img.src = `${BASE_URL}/imagenes/default.png`;
+        }
+      });
+    }
   });
 
+  const iva = subtotal * IVA_PORCENTAJE;
+  const total = subtotal + iva;
+
+  subtotalLabel.textContent = `$${subtotal.toFixed(2)}`;
+  ivaLabel.textContent = `$${iva.toFixed(2)}`;
   totalLabel.textContent = `Total: $${total.toFixed(2)}`;
 
-  // Asignar eventos para aumentar/disminuir cantidades y eliminar productos
-  document.querySelectorAll(".aumentar-cantidad").forEach(btn =>
-    btn.addEventListener("click", e => modificarCantidad(e.currentTarget.dataset.id, 1)));
-
-  document.querySelectorAll(".disminuir-cantidad").forEach(btn =>
-    btn.addEventListener("click", e => modificarCantidad(e.currentTarget.dataset.id, -1)));
-
-  document.querySelectorAll(".eliminar-producto").forEach(btn =>
-    btn.addEventListener("click", e => eliminarProducto(e.currentTarget.dataset.id)));
+  // Reasignar listeners
+  document
+    .querySelectorAll(".disminuir-cantidad")
+    .forEach((btn) =>
+      btn.addEventListener("click", () => modificarCantidad(btn.dataset.id, -1))
+    );
+  document
+    .querySelectorAll(".aumentar-cantidad")
+    .forEach((btn) =>
+      btn.addEventListener("click", () => modificarCantidad(btn.dataset.id, 1))
+    );
+  document
+    .querySelectorAll(".eliminar-producto")
+    .forEach((btn) =>
+      btn.addEventListener("click", () => eliminarProducto(btn.dataset.id))
+    );
 }
 
-// 🔄 Aumentar o disminuir cantidad de un producto
+/* ══════════════════════════════════════════════
+   🔄 Modificar cantidad
+══════════════════════════════════════════════ */
 function modificarCantidad(id, cambio) {
   let carrito = JSON.parse(localStorage.getItem("carrito")) || [];
-  const index = carrito.findIndex(p => p.id === id);
+  const index = carrito.findIndex((p) => p.id === id);
   if (index !== -1) {
     carrito[index].cantidad += cambio;
-    if (carrito[index].cantidad <= 0) carrito.splice(index, 1); // Eliminar producto si cantidad <= 0
+    if (carrito[index].cantidad <= 0) carrito.splice(index, 1);
     localStorage.setItem("carrito", JSON.stringify(carrito));
     mostrarCarrito();
     actualizarContadorCarrito();
   }
 }
 
-// ❌ Eliminar producto del carrito
+/* ══════════════════════════════════════════════
+   🗑️ Eliminar producto
+══════════════════════════════════════════════ */
 function eliminarProducto(id) {
   let carrito = JSON.parse(localStorage.getItem("carrito")) || [];
-  carrito = carrito.filter(p => p.id !== id); // Filtrar el producto a eliminar
+  carrito = carrito.filter((p) => p.id !== id);
   localStorage.setItem("carrito", JSON.stringify(carrito));
   mostrarCarrito();
   actualizarContadorCarrito();
   mostrarToast("Producto eliminado del carrito.", "danger");
 }
 
-// 🔢 Contador visual del total de productos
+/* ══════════════════════════════════════════════
+   🔢 Contador carrito
+══════════════════════════════════════════════ */
 function actualizarContadorCarrito() {
   const carrito = JSON.parse(localStorage.getItem("carrito")) || [];
-  const total = carrito.reduce((sum, p) => sum + p.cantidad, 0); // Calcular el total de productos
-  document.querySelectorAll("#contador-carrito").forEach(el => el.textContent = total);
+  const total = carrito.reduce((sum, p) => sum + p.cantidad, 0);
+  document
+    .querySelectorAll("#contador-carrito")
+    .forEach((el) => (el.textContent = total));
 }
 
-// 🔔 Toasts flotantes
+/* ══════════════════════════════════════════════
+   🔔 Toast UI
+══════════════════════════════════════════════ */
 function mostrarToast(mensaje, tipo = "success") {
-  const container = document.getElementById("toast-container") || crearContenedorToasts();
+  const container =
+    document.getElementById("toast-container") || crearContenedorToasts();
   const toast = document.createElement("div");
-  toast.className = `toast align-items-center text-white bg-${tipo} border-0 show shadow`;
+  toast.className = `toast align-items-center text-white bg-${tipo} border-0 show shadow mb-2`;
   toast.setAttribute("role", "alert");
   toast.innerHTML = `
     <div class="d-flex">
@@ -163,7 +201,6 @@ function mostrarToast(mensaje, tipo = "success") {
   setTimeout(() => toast.remove(), 3500);
 }
 
-// Crear contenedor para los toasts si no existe
 function crearContenedorToasts() {
   const div = document.createElement("div");
   div.id = "toast-container";
@@ -173,113 +210,39 @@ function crearContenedorToasts() {
   return div;
 }
 
-// 🚀 Validación y envío del pedido (modo autenticado)
-async function realizarPedidoDesdeLocalStorage() {
-  console.log("entro a realizarPedidoDesdeLocalStorage");
+/* ══════════════════════════════════════════════
+   ✅ Validar stock en checkout
+══════════════════════════════════════════════ */
+async function validarStockAntesDeCheckout() {
   const carrito = JSON.parse(localStorage.getItem("carrito")) || [];
   const errores = [];
 
-  // Verificar que el stock de cada producto sea suficiente
-  for (const item of carrito) {
-    try {
-      const res = await fetch(`${BASE_URL}/productos/${item.id}`);
-      if (!res.ok) throw new Error("No se pudo obtener información del producto.");
-      const producto = await res.json();
-
-      if (item.cantidad > producto.stock) {
-        errores.push(`"${producto.nombre}" solo tiene ${producto.stock} unidades disponibles.`);
-      }
-    } catch (error) {
-      errores.push(`Error al verificar producto ID ${item.id}`);
-    }
-  }
-
-  // Si hay errores, mostrar alerta y no continuar
-  if (errores.length > 0) {
-    alert("❌ No se puede procesar el pedido:\n\n" + errores.join("\n"));
+  if (carrito.length === 0) {
+    alert("❌ El carrito está vacío.");
     return;
   }
 
-  // Crear el pedido con los productos del carrito
-  const payload = {
-    productos: carrito.map(p => ({
-      producto_id: p.id,
-      cantidad: p.cantidad,
-      precio_unitario: parseFloat(p.precio)
-    }))
-  };
-
-  const usuario = JSON.parse(localStorage.getItem("usuario")) || [];
-  console.log("Local storage Usuario: ");
-  console.dir(usuario, { depth: null });
-  console.log("Informacion del carrito ");
-  console.dir(carrito, { depth: null });
-  console.log(carrito.length);
-  let totalProductos = 0;
-
-  for(let i = 0; i < carrito.length ; i++){
-    let precioPorProducto = carrito[i].precio * carrito[i].cantidad;
-    totalProductos += precioPorProducto;
-    console.log("El total va siendo: "+totalProductos);
-  }
-
-  const pedidoCarrito = {
-    usuario : {
-     usuario_id : usuario.usuario_id
-    },
-    total : totalProductos,
-    metodo_pago : "tarjeta",
-    cupon : "",
-    direccion_envio : "Calle locochona",
-    notas : ""
-  }
-
-  try {
-    const res = await fetch(`${BASE_URL}/pedidos`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify(pedidoCarrito)
-    });
-
-    const data = await res.json();
-    console.log("pedido CREADO");
-    console.log(data);
-
-    console.log("ITEMS:");
-    for (const item of carrito) {
-      console.log(item);
-      //TODO Mi registro de Pedido por producto
-      const pedidoProducto = {
-          fk_productos : item.id,
-          fk_pedidos : data.pedido_id
+  for (const item of carrito) {
+    try {
+      const res = await fetch(`${BASE_URL}/productos/${item.id}`);
+      if (!res.ok)
+        throw new Error("No se pudo obtener información del producto.");
+      const producto = await res.json();
+      if (item.cantidad > producto.stock) {
+        errores.push(
+          `"${producto.nombre}" solo tiene ${producto.stock} unidades disponibles.`
+        );
       }
-
-      const resPedidoProducto = await fetch(`${BASE_URL}/pedidos/makepp`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify(pedidoProducto)
-        
-      });
-      console.log(resPedidoProducto);
+    } catch (error) {
+      errores.push(`Error al verificar stock del producto ID ${item.id}`);
     }
-
-    if (res.ok) {
-      localStorage.removeItem("carrito"); // Vaciar carrito tras el pedido
-      mostrarCarrito();
-      actualizarContadorCarrito();
-      alert("✅ Pedido generado correctamente.");
-    } else {
-      alert("❌ Error al generar el pedido: " + (data?.mensaje || "Error desconocido."));
-    }
-
-  } catch (error) {
-    console.error("❌ Error inesperado:", error);
-    alert("❌ Ocurrió un error inesperado al procesar tu pedido.");
   }
+
+  if (errores.length > 0) {
+    alert("❌ No se puede continuar:\n\n" + errores.join("\n"));
+    return;
+  }
+
+  localStorage.setItem("checkout_validado", "true");
+  window.location.href = `${BASE_URL}/checkout.html`;
 }
