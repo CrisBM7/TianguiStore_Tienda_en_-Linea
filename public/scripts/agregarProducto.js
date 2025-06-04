@@ -54,7 +54,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     console.log("Este es el slug producto autogenerado: "+ slugProductoAutogenerado);
 
-    let imagenC = "imagenes\\productos\\" + nombre.value.trim() +".png";
+    let imagenC = "imagenes\\productos\\" + nombre.value.trim() +".jpg";
 
     const datos = {
       nombre: nombre.value.trim(),
