@@ -29,7 +29,7 @@ exports.obtenerMisPedidos = async (req, res) => {
     return res.status(403).json({ mensaje: "No autenticado" });
   }
   console.log("Entro a la funcion obtener Pedidos");
-  const usuario = JSON.parse(req.body.usuario);
+  usuario = JSON.parse(req.body.usuario);
   console.log("Este es el objeto usuario: ", usuario);
   console.log("usuario id " + usuario.usuario_id);
 
@@ -116,6 +116,7 @@ exports.crearPedido = async (req, res) => {
     });
   }
 };
+}
 
 
 /**
@@ -170,12 +171,13 @@ exports.crearPedidoDesdeCarrito = async (req, res) => {
     return res.status(400).json({ mensaje: "Faltan campos requeridos: dirección o método de pago" });
   }
 
-  try {
+  //try {
     const productos = await pedidoModel.obtenerCarrito(usuario.usuario_id);
 
     if (!Array.isArray(productos) || productos.length === 0) {
       return res.status(400).json({ mensaje: "El carrito está vacío o no es válido" });
   //if (!usuario) return res.status(403).json({ mensaje: "No autenticado" });
+  
 
   try {
     const totalCarrito = await pedidoModel.calcularTotalCarrito(usuario.usuario_id);
@@ -298,4 +300,4 @@ exports.listarTodosLosPedidos = async (req, res) => {
     res.status(500).json({ mensaje: "No se pudieron obtener los pedidos." });
   }
 };
-
+}
